@@ -14,9 +14,26 @@ export function validatePassword(password: string): string | null {
   if (!password.trim()) {
     return 'Please enter your password';
   }
+  
+  const errors = [];
+  
   if (password.length < 8) {
-    return 'Password must be at least 6 characters long';
+    errors.push('At least 8 characters');
   }
+  if (!/[A-Z]/.test(password)) {
+    errors.push('One uppercase letter');
+  }
+  if (!/[a-z]/.test(password)) {
+    errors.push('One lowercase letter');
+  }
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    errors.push('One special character');
+  }
+  
+  if (errors.length > 0) {
+    return `Password must contain: ${errors.join(', ')}`;
+  }
+  
   return null;
 }
 

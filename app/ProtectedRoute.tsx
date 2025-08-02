@@ -1,6 +1,6 @@
-import React from 'react';
-import { useRouter, Slot } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
+import { Slot, useRouter } from 'expo-router';
+import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 export default function ProtectedRoute() {

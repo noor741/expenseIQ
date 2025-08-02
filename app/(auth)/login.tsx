@@ -1,9 +1,10 @@
 import { supabase } from '@/lib/supabase';
 import { validateEmail, validatePassword } from '@/utils/inputValidation';
+import { Ionicons } from '@expo/vector-icons';
 import { defaultConfig } from '@tamagui/config/v4';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Dimensions, StatusBar } from 'react-native';
+import { Alert, Dimensions, StatusBar, TouchableOpacity } from 'react-native';
 import { Button, Card, createTamagui, H2, Input, ScrollView, TamaguiProvider, Text, XStack, YStack } from 'tamagui';
 
 const config = createTamagui(defaultConfig);
@@ -20,6 +21,8 @@ export default function LoginScreen() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
 
   const validateLoginForm = () => {
@@ -266,64 +269,104 @@ export default function LoginScreen() {
                   <Text color="#ef4444" fontSize={isTablet ? 14 : 13} marginTop={-10} marginBottom={4}>{emailError}</Text>
                 )}
                 
-                <Input
-                  placeholder="Enter your password"
-                  value={password}
-                  onChangeText={handlePasswordChange}
-                  secureTextEntry={true}
-                  autoCapitalize="none"
-                  autoComplete="password"
-                  height={isTablet ? 56 : 52}
-                  fontSize={isTablet ? 16 : 15}
-                  borderWidth={1}
-                  borderColor="#e5e7eb"
-                  backgroundColor="#f9fafb"
-                  borderRadius={12}
-                  paddingHorizontal={16}
-                  editable={!loading}
-                  focusStyle={{ 
-                    borderColor: '#4285f4', 
-                    backgroundColor: '#ffffff',
-                    shadowColor: '#4285f4',
-                    shadowOffset: { width: 0, height: 0 },
-                    shadowOpacity: 0.15,
-                    shadowRadius: 8,
-                    elevation: 2
-                  }}
-                  placeholderTextColor="#9ca3af"
-                />
+                <XStack position="relative" alignItems="center">
+                  <Input
+                    placeholder="Enter your password"
+                    value={password}
+                    onChangeText={handlePasswordChange}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoComplete="password"
+                    height={isTablet ? 56 : 52}
+                    fontSize={isTablet ? 16 : 15}
+                    borderWidth={1}
+                    borderColor="#e5e7eb"
+                    backgroundColor="#f9fafb"
+                    borderRadius={12}
+                    paddingHorizontal={16}
+                    paddingRight={50}
+                    flex={1}
+                    editable={!loading}
+                    focusStyle={{ 
+                      borderColor: '#4285f4', 
+                      backgroundColor: '#ffffff',
+                      shadowColor: '#4285f4',
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: 0.15,
+                      shadowRadius: 8,
+                      elevation: 2
+                    }}
+                    placeholderTextColor="#9ca3af"
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: 16,
+                      zIndex: 1,
+                      padding: 4,
+                    }}
+                    disabled={loading}
+                  >
+                    <Ionicons
+                      name={showPassword ? 'eye-off' : 'eye'}
+                      size={20}
+                      color="#6b7280"
+                    />
+                  </TouchableOpacity>
+                </XStack>
                 {passwordError && (
                   <Text color="#ef4444" fontSize={isTablet ? 14 : 13} marginTop={-10} marginBottom={4}>{passwordError}</Text>
                 )}
 
                 {activeTab === 'signup' && (
                   <>
-                    <Input
-                      placeholder="Confirm your password"
-                      value={confirmPassword}
-                      onChangeText={handleConfirmChange}
-                      secureTextEntry={true}
-                      autoCapitalize="none"
-                      autoComplete="password"
-                      height={isTablet ? 56 : 52}
-                      fontSize={isTablet ? 16 : 15}
-                      borderWidth={1}
-                      borderColor="#e5e7eb"
-                      backgroundColor="#f9fafb"
-                      borderRadius={12}
-                      paddingHorizontal={16}
-                      editable={!loading}
-                      focusStyle={{ 
-                        borderColor: '#4285f4', 
-                        backgroundColor: '#ffffff',
-                        shadowColor: '#4285f4',
-                        shadowOffset: { width: 0, height: 0 },
-                        shadowOpacity: 0.15,
-                        shadowRadius: 8,
-                        elevation: 2
-                      }}
-                      placeholderTextColor="#9ca3af"
-                    />
+                    <XStack position="relative" alignItems="center">
+                      <Input
+                        placeholder="Confirm your password"
+                        value={confirmPassword}
+                        onChangeText={handleConfirmChange}
+                        secureTextEntry={!showConfirmPassword}
+                        autoCapitalize="none"
+                        autoComplete="password"
+                        height={isTablet ? 56 : 52}
+                        fontSize={isTablet ? 16 : 15}
+                        borderWidth={1}
+                        borderColor="#e5e7eb"
+                        backgroundColor="#f9fafb"
+                        borderRadius={12}
+                        paddingHorizontal={16}
+                        paddingRight={50}
+                        flex={1}
+                        editable={!loading}
+                        focusStyle={{ 
+                          borderColor: '#4285f4', 
+                          backgroundColor: '#ffffff',
+                          shadowColor: '#4285f4',
+                          shadowOffset: { width: 0, height: 0 },
+                          shadowOpacity: 0.15,
+                          shadowRadius: 8,
+                          elevation: 2
+                        }}
+                        placeholderTextColor="#9ca3af"
+                      />
+                      <TouchableOpacity
+                        onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                        style={{
+                          position: 'absolute',
+                          right: 16,
+                          zIndex: 1,
+                          padding: 4,
+                        }}
+                        disabled={loading}
+                      >
+                        <Ionicons
+                          name={showConfirmPassword ? 'eye-off' : 'eye'}
+                          size={20}
+                          color="#6b7280"
+                        />
+                      </TouchableOpacity>
+                    </XStack>
                     {confirmError && (
                       <Text color="#ef4444" fontSize={isTablet ? 14 : 13} marginTop={-10} marginBottom={4}>{confirmError}</Text>
                     )}
