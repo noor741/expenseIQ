@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { validateConfirmPassword, validateEmail, validatePassword } from '@/utils/inputValidation';
 import { defaultConfig } from '@tamagui/config/v4';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -15,28 +16,19 @@ export default function RegisterScreen() {
   const router = useRouter();
 
   const validateForm = () => {
-    if (!email.trim()) {
-      Alert.alert('Validation Error', 'Please enter your email');
+    const emailError = validateEmail(email);
+    if (emailError) {
+      Alert.alert('Validation Error', emailError);
       return false;
     }
-    if (!password.trim()) {
-      Alert.alert('Validation Error', 'Please enter your password');
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      Alert.alert('Validation Error', passwordError);
       return false;
     }
-    if (!confirmPassword.trim()) {
-      Alert.alert('Validation Error', 'Please confirm your password');
-      return false;
-    }
-    if (!email.includes('@')) {
-      Alert.alert('Validation Error', 'Please enter a valid email address');
-      return false;
-    }
-    if (password.length < 6) {
-      Alert.alert('Validation Error', 'Password must be at least 6 characters long');
-      return false;
-    }
-    if (password !== confirmPassword) {
-      Alert.alert('Validation Error', 'Passwords do not match');
+    const confirmError = validateConfirmPassword(password, confirmPassword);
+    if (confirmError) {
+      Alert.alert('Validation Error', confirmError);
       return false;
     }
     return true;
