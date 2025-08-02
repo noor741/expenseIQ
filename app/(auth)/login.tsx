@@ -185,10 +185,6 @@ export default function LoginScreen() {
             padding={isTablet ? 32 : 24} 
             backgroundColor="#ffffff" 
             borderRadius={isTablet ? 20 : 16}
-            shadowColor="#000"
-            shadowOffset={{ width: 0, height: 4 }}
-            shadowOpacity={0.08}
-            shadowRadius={12}
             elevation={8}
           >
             <YStack space={isTablet ? 24 : 20}>
@@ -206,10 +202,6 @@ export default function LoginScreen() {
                   borderRadius={9}
                   fontSize={isTablet ? 16 : 15}
                   fontWeight={activeTab === 'login' ? '600' : '500'}
-                  shadowColor={activeTab === 'login' ? '#000' : 'transparent'}
-                  shadowOffset={{ width: 0, height: 2 }}
-                  shadowOpacity={activeTab === 'login' ? 0.08 : 0}
-                  shadowRadius={4}
                   elevation={activeTab === 'login' ? 3 : 0}
                   onPress={() => setActiveTab('login')}
                   pressStyle={{ opacity: 0.8, scale: 0.98 }}
@@ -224,10 +216,6 @@ export default function LoginScreen() {
                   borderRadius={9}
                   fontSize={isTablet ? 16 : 15}
                   fontWeight={activeTab === 'signup' ? '600' : '500'}
-                  shadowColor={activeTab === 'signup' ? '#4285f4' : 'transparent'}
-                  shadowOffset={{ width: 0, height: 2 }}
-                  shadowOpacity={activeTab === 'signup' ? 0.2 : 0}
-                  shadowRadius={6}
                   elevation={activeTab === 'signup' ? 4 : 0}
                   onPress={() => setActiveTab('signup')}
                   pressStyle={{ opacity: 0.8, scale: 0.98 }}
@@ -257,10 +245,6 @@ export default function LoginScreen() {
                   focusStyle={{ 
                     borderColor: '#4285f4', 
                     backgroundColor: '#ffffff',
-                    shadowColor: '#4285f4',
-                    shadowOffset: { width: 0, height: 0 },
-                    shadowOpacity: 0.15,
-                    shadowRadius: 8,
                     elevation: 2
                   }}
                   placeholderTextColor="#9ca3af"
@@ -290,10 +274,6 @@ export default function LoginScreen() {
                     focusStyle={{ 
                       borderColor: '#4285f4', 
                       backgroundColor: '#ffffff',
-                      shadowColor: '#4285f4',
-                      shadowOffset: { width: 0, height: 0 },
-                      shadowOpacity: 0.15,
-                      shadowRadius: 8,
                       elevation: 2
                     }}
                     placeholderTextColor="#9ca3af"
@@ -342,10 +322,6 @@ export default function LoginScreen() {
                         focusStyle={{ 
                           borderColor: '#4285f4', 
                           backgroundColor: '#ffffff',
-                          shadowColor: '#4285f4',
-                          shadowOffset: { width: 0, height: 0 },
-                          shadowOpacity: 0.15,
-                          shadowRadius: 8,
                           elevation: 2
                         }}
                         placeholderTextColor="#9ca3af"
@@ -388,10 +364,6 @@ export default function LoginScreen() {
                     scale: 0.98,
                     backgroundColor: '#3367d6'
                   }}
-                  shadowColor="#4285f4"
-                  shadowOffset={{ width: 0, height: 4 }}
-                  shadowOpacity={0.2}
-                  shadowRadius={8}
                   elevation={4}
                   borderWidth={0}
                 >

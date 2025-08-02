@@ -44,8 +44,16 @@ export default function ForgotPasswordScreen() {
 
     setLoading(true);
     try {
+      // Always use web URL for password reset - better UX
+      const getRedirectUrl = () => {
+        // Use web-based reset page for all platforms
+        // For production, replace localhost with your actual domain
+        const baseUrl = __DEV__ ? 'http://localhost:8081' : 'https://yourapp.com';
+        return `${baseUrl}/reset-password-web`;
+      };
+
       const result = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: 'exp://localhost:8081/(auth)/reset-password', // Adjust this URL as needed
+        redirectTo: getRedirectUrl(),
       });
 
       if (result && result.error) {
@@ -54,7 +62,7 @@ export default function ForgotPasswordScreen() {
         setEmailSent(true);
         Alert.alert(
           'Reset Email Sent',
-          'Please check your email for password reset instructions. The email may take a few minutes to arrive.',
+          'Please check your email and click the reset link. It will open a secure web page where you can set your new password. After resetting, return to the app to log in.',
           [
             {
               text: 'OK',
@@ -125,10 +133,6 @@ export default function ForgotPasswordScreen() {
             padding={isTablet ? 32 : 24} 
             backgroundColor="#ffffff" 
             borderRadius={isTablet ? 20 : 16}
-            shadowColor="#000"
-            shadowOffset={{ width: 0, height: 4 }}
-            shadowOpacity={0.08}
-            shadowRadius={12}
             elevation={8}
           >
             <YStack space={isTablet ? 24 : 20}>
@@ -154,10 +158,6 @@ export default function ForgotPasswordScreen() {
                       focusStyle={{ 
                         borderColor: '#4285f4', 
                         backgroundColor: '#ffffff',
-                        shadowColor: '#4285f4',
-                        shadowOffset: { width: 0, height: 0 },
-                        shadowOpacity: 0.15,
-                        shadowRadius: 8,
                         elevation: 2
                       }}
                       placeholderTextColor="#9ca3af"
@@ -177,10 +177,6 @@ export default function ForgotPasswordScreen() {
                         scale: 0.98,
                         backgroundColor: '#3367d6'
                       }}
-                      shadowColor="#4285f4"
-                      shadowOffset={{ width: 0, height: 4 }}
-                      shadowOpacity={0.2}
-                      shadowRadius={8}
                       elevation={4}
                       borderWidth={0}
                     >

@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createClient } from '@supabase/supabase-js'
+import { Platform } from 'react-native'
 import 'react-native-url-polyfill/auto'
 
 // Get Supabase credentials from environment variables
@@ -13,11 +14,42 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
+// Create a safe storage adapter that works across platforms
+const createStorage = () => {
+  // Check if we're in a browser environment
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    // Use localStorage for web
+    return {
+      getItem: (key: string) => {
+        return Promise.resolve(localStorage.getItem(key))
+      },
+      setItem: (key: string, value: string) => {
+        localStorage.setItem(key, value)
+        return Promise.resolve()
+      },
+      removeItem: (key: string) => {
+        localStorage.removeItem(key)
+        return Promise.resolve()
+      },
+    }
+  } else if (Platform.OS === 'web') {
+    // Server-side rendering fallback (no-op storage)
+    return {
+      getItem: () => Promise.resolve(null),
+      setItem: () => Promise.resolve(),
+      removeItem: () => Promise.resolve(),
+    }
+  } else {
+    // Use AsyncStorage for React Native
+    return AsyncStorage
+  }
+}
+
 /**
  * Supabase Client Configuration
  * 
- * This creates a Supabase client with AsyncStorage for session persistence
- * in React Native. The client handles:
+ * This creates a Supabase client with cross-platform storage for session persistence.
+ * The client handles:
  * - User authentication (login, signup, logout)
  * - Database operations (CRUD)
  * - Real-time subscriptions
@@ -25,14 +57,16 @@ if (!supabaseUrl || !supabaseAnonKey) {
  */
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    // Use AsyncStorage to persist the user session in React Native
-    storage: AsyncStorage,
+    // Use platform-appropriate storage for session persistence
+    storage: createStorage(),
     // Set to false to disable automatic token refresh
     autoRefreshToken: true,
     // Set to false to disable session persistence
     persistSession: true,
-    // Detect session in URL (for OAuth flows)
-    detectSessionInUrl: false,
+    // Detect session in URL (for OAuth flows and password recovery)
+    detectSessionInUrl: true,
+    // Configure flow type for better password reset handling
+    flowType: 'pkce',
   },
 })
 
