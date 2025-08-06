@@ -1,7 +1,7 @@
-import { TamaguiProvider, View, createTamagui} from "@tamagui/core";
+import { TamaguiProvider, View, createTamagui } from "@tamagui/core";
 
+import ButtonUI from "@/components/ui/buttonUi";
 import { defaultConfig } from "@tamagui/config/v4";
-import ButtonUI from "@/components/expenseUI/button";
 
 const config = createTamagui(defaultConfig)
 
