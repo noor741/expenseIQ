@@ -50,13 +50,9 @@ export default function LoginScreen() {
       Alert.alert('Validation Error', passwordError);
       return false;
     }
-    const confirmError = validatePassword(confirmPassword);
+    const confirmError = validateConfirmPassword(password, confirmPassword);
     if (confirmError) {
       Alert.alert('Validation Error', confirmError);
-      return false;
-    }
-    if (password !== confirmPassword) {
-      Alert.alert('Validation Error', 'Passwords do not match');
       return false;
     }
     return true;
