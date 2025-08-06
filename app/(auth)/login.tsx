@@ -138,7 +138,7 @@ export default function LoginScreen() {
   };
   const handleConfirmChange = (text: string) => {
     setConfirmPassword(text);
-    setConfirmError(validatePassword(text));
+    setConfirmError(validateConfirmPassword(password, text));
   };
 
   return (
