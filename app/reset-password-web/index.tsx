@@ -232,7 +232,7 @@ export default function WebPasswordResetPage() {
           <Text style={styles.description}>
             Please return to the ExpenseIQ app and request a new password reset link.
           </Text>
-          <TouchableOpacity style={styles.button} onPress={() => window.close()}>
+          <TouchableOpacity style={styles.button} onPress={safeWindowClose}>
             <Text style={styles.buttonText}>Close Page</Text>
           </TouchableOpacity>
         </View>
