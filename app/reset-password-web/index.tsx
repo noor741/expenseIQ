@@ -252,7 +252,7 @@ export default function WebPasswordResetPage() {
           <Text style={styles.description}>
             You can now return to the ExpenseIQ app and log in with your new password.
           </Text>
-          <TouchableOpacity style={styles.button} onPress={() => window.close()}>
+          <TouchableOpacity style={styles.button} onPress={handleCloseWindow}>
             <Text style={styles.buttonText}>Close & Return to App</Text>
           </TouchableOpacity>
         </View>
