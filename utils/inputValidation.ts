@@ -58,7 +58,7 @@ export function validateText(value: string, required = true, minLength = 1, maxL
   if (required && !value.trim()) {
     return 'This field is required';
   }
-  if (minLength && value.length < minLength) {
+  if (minLength > 0 && value.length < minLength) {
     return `Must be at least ${minLength} characters`;
   }
   if (maxLength && value.length > maxLength) {
