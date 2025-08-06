@@ -332,7 +332,7 @@ export default function WebPasswordResetPage() {
 
         <TouchableOpacity 
           style={styles.secondaryButton} 
-          onPress={() => window.close()}
+          onPress={handleCancel}
         >
           <Text style={styles.secondaryButtonText}>Cancel</Text>
         </TouchableOpacity>
