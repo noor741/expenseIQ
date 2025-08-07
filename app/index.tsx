@@ -1,36 +1,23 @@
-import { isAuthenticated } from '@/lib/supabase';
-import { useRouter, useSegments } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 export default function InitialRoute() {
   const router = useRouter();
-  const segments = useSegments();
+  const { user, loading } = useAuth();
 
   useEffect(() => {
-    const checkAuthAndRedirect = async () => {
-      try {
-        const authenticated = await isAuthenticated();
-        
-        // Check if we're in an auth route
-        const inAuthGroup = segments[0] === '(auth)';
-        
-        if (authenticated && inAuthGroup) {
-          // User is authenticated but on auth screen, redirect to main app
-          router.replace('/(tabs)');
-        } else if (!authenticated && !inAuthGroup) {
-          // User is not authenticated but not on auth screen, redirect to login
-          router.replace('/(auth)/login');
-        }
-      } catch (error) {
-        console.error('Auth check error:', error);
-        // If there's an error, default to login
+    if (!loading) {
+      if (user) {
+        // User is authenticated, go to main app
+        router.replace('/(tabs)');
+      } else {
+        // User is not authenticated, go to login
         router.replace('/(auth)/login');
       }
-    };
-
-    checkAuthAndRedirect();
-  }, []);
+    }
+  }, [user, loading]);
 
   // Show loading screen while checking authentication
   return (
