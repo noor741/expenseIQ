@@ -26,7 +26,8 @@ module.exports = {
       },
       edgeToEdgeEnabled: true,
       permissions: [
-        "CAMERA"
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
       ]
     },
     web: {

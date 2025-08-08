@@ -1,20 +1,26 @@
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
-import { useState, useRef } from 'react';
-import { 
-  Button, 
-  StyleSheet, 
-  Text, 
-  TouchableOpacity, 
-  View, 
+import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
+import * as DocumentPicker from 'expo-document-picker';
+import { useRef, useState } from 'react';
+import {
   Alert,
-  Image
+  Button,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ActivityIndicator
 } from 'react-native';
+import { useAuth } from '@/context/AuthContext';
+import { ReceiptService } from '@/services/receiptService';
 
 export default function ScanScreen() {
   const [facing, setFacing] = useState<CameraType>('back');
   const [permission, requestPermission] = useCameraPermissions();
   const [photo, setPhoto] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const cameraRef = useRef<CameraView>(null);
+  const { user } = useAuth();
 
   if (!permission) {
     // Camera permissions are still loading
@@ -41,7 +47,6 @@ export default function ScanScreen() {
         
         if (result) {
           setPhoto(result.uri);
-          Alert.alert('Photo Captured!', 'Receipt photo saved successfully.');
         }
       } catch (error) {
         console.error('Error taking picture:', error);
@@ -58,20 +63,84 @@ export default function ScanScreen() {
     setPhoto(null);
   };
 
+  const pickImageFromDevice = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['image/*'],
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setPhoto(asset.uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to select image from device');
+    }
+  };
+
+  const uploadReceipt = async () => {
+    if (!photo || !user) {
+      Alert.alert('Error', 'No photo to upload or user not authenticated');
+      return;
+    }
+
+    setIsUploading(true);
+    
+    try {
+      const result = await ReceiptService.uploadReceipt(photo, user.id, 'camera');
+      
+      if (result.success) {
+        Alert.alert(
+          'Success!', 
+          'Receipt uploaded and saved to your account.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setPhoto(null);
+                setIsUploading(false);
+              }
+            }
+          ]
+        );
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      Alert.alert('Upload Failed', error instanceof Error ? error.message : 'Please try again');
+      setIsUploading(false);
+    }
+  };
+
   if (photo) {
     return (
       <View style={styles.container}>
         <Image source={{ uri: photo }} style={styles.preview} />
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} onPress={retakePhoto}>
+          <TouchableOpacity 
+            style={[styles.button, styles.secondaryButton]} 
+            onPress={retakePhoto}
+            disabled={isUploading}
+          >
             <Text style={styles.buttonText}>Retake</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.button} onPress={() => {
-            // Here you could process the receipt or save it
-            Alert.alert('Success', 'Receipt processed successfully!');
-            setPhoto(null);
-          }}>
-            <Text style={styles.buttonText}>Use Photo</Text>
+          
+          <TouchableOpacity 
+            style={[styles.button, isUploading && styles.buttonDisabled]} 
+            onPress={uploadReceipt}
+            disabled={isUploading}
+          >
+            {isUploading ? (
+              <View style={styles.uploadingContainer}>
+                <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+                <Text style={styles.buttonText}>Uploading...</Text>
+              </View>
+            ) : (
+              <Text style={styles.buttonText}>Save Receipt</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -103,7 +172,10 @@ export default function ScanScreen() {
           <View style={styles.captureButtonInner} />
         </TouchableOpacity>
         
-        <View style={styles.placeholder} />
+        <TouchableOpacity style={styles.uploadButton} onPress={pickImageFromDevice}>
+          <Text style={styles.uploadButtonText}>📁</Text>
+          <Text style={styles.uploadButtonLabel}>Upload</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -203,5 +275,35 @@ const styles = StyleSheet.create({
     padding: 15,
     minWidth: 100,
     alignItems: 'center',
+  },
+  secondaryButton: {
+    backgroundColor: '#6b7280',
+  },
+  buttonDisabled: {
+    backgroundColor: '#9ca3af',
+    opacity: 0.6,
+  },
+  uploadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadButton: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 20,
+    padding: 10,
+    minWidth: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadButtonText: {
+    fontSize: 20,
+    marginBottom: 2,
+  },
+  uploadButtonLabel: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
   },
 });
