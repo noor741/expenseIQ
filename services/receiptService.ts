@@ -59,16 +59,21 @@ export class ReceiptService {
       const fileName = `${receiptId}.${fileExtension}`;
       const storagePath = `${userId}/${fileName}`;
 
-      const base64 = await FileSystem.readAsStringAsync(imageUri, {
+      // Read file as ArrayBuffer which works better with Supabase
+      const fileData = await FileSystem.readAsStringAsync(imageUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
 
-      const response = await fetch(`data:image/${fileExtension};base64,${base64}`);
-      const blob = await response.blob();
+      // Convert base64 to ArrayBuffer for proper upload
+      const binaryString = atob(fileData);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
 
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('receipts')
-        .upload(storagePath, blob, {
+        .upload(storagePath, bytes, {
           contentType: `image/${fileExtension}`,
           upsert: false
         });

@@ -1,18 +1,18 @@
+import { useAuth } from '@/context/AuthContext';
+import { ReceiptService } from '@/services/receiptService';
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import * as DocumentPicker from 'expo-document-picker';
 import { useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Button,
   Image,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
-  ActivityIndicator
+  View
 } from 'react-native';
-import { useAuth } from '@/context/AuthContext';
-import { ReceiptService } from '@/services/receiptService';
 
 export default function ScanScreen() {
   const [facing, setFacing] = useState<CameraType>('back');
