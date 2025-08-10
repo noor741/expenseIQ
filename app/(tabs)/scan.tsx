@@ -1,7 +1,9 @@
 import { useAuth } from '@/context/AuthContext';
-import { ReceiptService } from '@/services/receiptService';
+import { supabase } from '@/lib/supabase';
+import { apiClient } from '@/services/apiClient';
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,6 +15,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import uuid from 'react-native-uuid';
 
 export default function ScanScreen() {
   const [facing, setFacing] = useState<CameraType>('back');
@@ -89,7 +92,44 @@ export default function ScanScreen() {
     setIsUploading(true);
     
     try {
-      const result = await ReceiptService.uploadReceipt(photo, user.id, 'camera');
+      const receiptId = uuid.v4() as string;
+      
+      // Step 1: Read the file and convert to base64
+      const fileInfo = await FileSystem.getInfoAsync(photo);
+      if (!fileInfo.exists) {
+        throw new Error('File not found');
+      }
+
+      const base64Data = await FileSystem.readAsStringAsync(photo, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Step 2: Convert base64 to Uint8Array (proper binary data)
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Step 3: Upload to Supabase Storage with user-specific folder
+      const filename = `${user.id}/receipt_${receiptId}.jpg`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('receipts')
+        .upload(filename, bytes, {
+          contentType: 'image/jpeg',
+          upsert: false
+        });
+
+      if (uploadError) {
+        throw new Error(`Storage upload failed: ${uploadError.message}`);
+      }
+
+      // Step 4: Create receipt record using API with the file path (not public URL since bucket is private)
+      const result = await apiClient.createReceipt({
+        file_url: filename, // Use the file path instead of public URL for private storage
+        status: 'uploaded'
+      });
       
       if (result.success) {
         Alert.alert(
@@ -106,7 +146,7 @@ export default function ScanScreen() {
           ]
         );
       } else {
-        throw new Error(result.error || 'Upload failed');
+        throw new Error(result.error || 'Failed to create receipt record');
       }
     } catch (error) {
       console.error('Upload error:', error);
