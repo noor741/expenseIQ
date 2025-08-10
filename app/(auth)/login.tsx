@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { validateEmail, validatePassword } from '@/utils/inputValidation';
+import { validateEmail, validatePassword, validateConfirmPassword } from '@/utils/inputValidation';
 import { Ionicons } from '@expo/vector-icons';
 import { defaultConfig } from '@tamagui/config/v4';
 import { useRouter } from 'expo-router';

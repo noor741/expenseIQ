@@ -1,17 +1,10 @@
 import { useAuth } from '@/context/AuthContext';
-import { Slot, useRouter } from 'expo-router';
+import { Slot } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
-export default function ProtectedRoute() {
+export default function ProtectedRoute({ children }: { children?: React.ReactNode }) {
   const { user, loading } = useAuth();
-  const router = useRouter();
-
-  React.useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/(auth)/login');
-    }
-  }, [user, loading]);
 
   if (loading) {
     return (
@@ -21,6 +14,10 @@ export default function ProtectedRoute() {
     );
   }
 
-  if (!user) return null;
-  return <Slot />;
+  // If no user, just return null and let the main app handle routing
+  if (!user) {
+    return null;
+  }
+
+  return children ? <>{children}</> : <Slot />;
 }

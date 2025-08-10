@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { validatePassword, validateConfirmPassword } from '@/utils/inputValidation';
+import { validateConfirmPassword, validatePassword } from '@/utils/inputValidation';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, Dimensions, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -216,6 +216,39 @@ export default function WebPasswordResetPage() {
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Safe window close function
+  const safeWindowClose = () => {
+    try {
+      if (typeof window !== 'undefined' && window.close) {
+        window.close();
+      }
+    } catch (error) {
+      console.log('Could not close window automatically');
+    }
+  };
+
+  // Handle close window after successful reset
+  const handleCloseWindow = () => {
+    try {
+      if (typeof window !== 'undefined' && window.close) {
+        window.close();
+      }
+    } catch (error) {
+      console.log('Could not close window automatically');
+    }
+  };
+
+  // Handle cancel action
+  const handleCancel = () => {
+    try {
+      if (typeof window !== 'undefined' && window.close) {
+        window.close();
+      }
+    } catch (error) {
+      console.log('Could not close window automatically');
     }
   };
 

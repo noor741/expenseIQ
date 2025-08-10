@@ -14,14 +14,21 @@ module.exports = {
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     ios: {
-      supportsTablet: true
+      supportsTablet: true,
+      infoPlist: {
+        NSCameraUsageDescription: "Allow ExpenseIQ to access your camera to scan receipts and capture expense photos."
+      }
     },
     android: {
       adaptiveIcon: {
         foregroundImage: "./assets/images/adaptive-icon.png",
         backgroundColor: "#ffffff"
       },
-      edgeToEdgeEnabled: true
+      edgeToEdgeEnabled: true,
+      permissions: [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
+      ]
     },
     web: {
       bundler: "metro",
@@ -37,6 +44,13 @@ module.exports = {
           imageWidth: 200,
           resizeMode: "contain",
           backgroundColor: "#ffffff"
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          cameraPermission: "Allow ExpenseIQ to access your camera to scan receipts and capture expense photos.",
+          microphonePermission: false
         }
       ]
     ],
