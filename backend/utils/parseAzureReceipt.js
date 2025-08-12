@@ -1,21 +1,42 @@
-// backend/utils/parseAzureReceipt.js
+/**
+ * parseAzureReceipt(ocr)
+ * ------------------------------------------------------------
+ * PURPOSE
+ *   Normalize Azure Form Recognizer (prebuilt-receipt) JSON into
+ *   our `expenses` column shape. Keeps all field mapping in one place.
+ *
+ * INPUT
+ *   ocr: full JSON returned by Azure (we expect ocr.documents[0].fields).
+ *
+ * OUTPUT
+ *   {
+ *     merchant_name: string | null,
+ *     transaction_date: 'YYYY-MM-DD' | null,
+ *     subtotal: number | null,
+ *     tax: number | null,
+ *     total: number | null,
+ *     currency: string | null,
+ *     payment_method: string | null
+ *   }
+ *
+ * NOTES
+ *   - All fields are optional; return nulls when not present.
+ *   - `transaction_date` is reduced to YYYY-MM-DD for consistency.
+ *   - If you later detect refunds, you can make totals negative here.
+ */
+
+// Convert Azure "fields" into our normalized expense shape
 module.exports = function parseAzureReceipt(ocr) {
-  const f = ocr?.documents?.[0]?.fields || {};
-  const toNum = (n) => {
-    const v = Number(n?.value ?? n);
-    return Number.isFinite(v) ? v : null;
-  };
-
-  const dateVal = f.TransactionDate?.value ?? null;
-  const transactionDate = dateVal ? new Date(dateVal).toISOString().slice(0,10) : null;
-
+  const fields = ocr?.documents?.[0]?.fields || {};
   return {
-    merchant_name: f.MerchantName?.value ?? null,
-    transaction_date: transactionDate,
-    subtotal: toNum(f.Subtotal),
-    tax: toNum(f.Tax),
-    total: toNum(f.Total),
-    currency: f.Total?.currencyCode ?? null,
-    payment_method: f.PaymentMethod?.value ?? null
+    merchant_name: fields?.MerchantName?.value || null,
+    transaction_date: fields?.TransactionDate?.value
+      ? fields.TransactionDate.value.split("T")[0]
+      : null,
+    subtotal: fields?.Subtotal?.value || null,
+    tax: fields?.Tax?.value || null,
+    total: fields?.Total?.value || null,
+    currency: fields?.Currency?.value || null,
+    payment_method: fields?.PaymentMethod?.value || null,
   };
 };
