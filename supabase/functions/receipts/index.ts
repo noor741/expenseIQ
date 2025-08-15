@@ -1,5 +1,6 @@
 import { azureOCR } from '../_shared/azureOCR.ts';
 import { corsHeaders, createErrorResponse, createResponse } from '../_shared/cors.ts';
+import { expenseService } from '../_shared/expenseService.ts';
 import { createServiceSupabaseClient, createSupabaseClient, getUser } from '../_shared/supabase.ts';
 
 Deno.serve(async (req) => {
@@ -127,7 +128,7 @@ Deno.serve(async (req) => {
 
         // 🤖 Trigger OCR processing asynchronously (don't wait for it)
         if (file_url && status === 'uploaded') {
-          processReceiptOCR(data.id, file_url, supabase).catch(error => {
+          processReceiptOCR(data.id, file_url, supabase, user.id).catch(error => {
             console.error(`❌ OCR processing failed for receipt ${data.id}:`, error);
           });
         }
@@ -214,16 +215,16 @@ Deno.serve(async (req) => {
 });
 
 /**
- * Process OCR for a receipt asynchronously
+ * Process OCR for a receipt asynchronously and create expense records
  */
-async function processReceiptOCR(receiptId: string, fileUrl: string, supabase: any) {
+async function processReceiptOCR(receiptId: string, fileUrl: string, supabase: any, userId: string) {
   try {
     console.log(`🚀 Starting OCR processing for receipt ${receiptId}`);
     
     // Process the receipt with Azure Document Intelligence
     const ocrResult = await azureOCR.processReceipt(fileUrl);
     
-    if (ocrResult.success) {
+    if (ocrResult.success && ocrResult.data) {
       console.log(`✅ OCR completed for receipt ${receiptId}`);
       console.log('📋 Extracted Data Summary:');
       console.log(`   Merchant: ${ocrResult.data?.merchantName || 'N/A'}`);
@@ -247,9 +248,40 @@ async function processReceiptOCR(receiptId: string, fileUrl: string, supabase: a
       
       if (updateError) {
         console.error(`❌ Failed to update receipt ${receiptId} with OCR results:`, updateError);
-      } else {
-        console.log(`💾 Receipt ${receiptId} updated with OCR results`);
+        return;
       }
+      
+      console.log(`💾 Receipt ${receiptId} updated with OCR results`);
+
+      // 🎯 Automatically create expense and expense items from OCR data
+      console.log(`🏗️ Creating expense from OCR data for receipt ${receiptId}`);
+      
+      // Create expense and expense items using the enhanced service
+      const expenseResult = await expenseService.createFromOCR(receiptId, ocrResult.rawData, userId);
+      
+      if (expenseResult.success) {
+        console.log(`🎉 Successfully created expense ${expenseResult.expenseId} with ${expenseResult.itemsCreated} items`);
+        
+        // Update receipt status to indicate successful expense creation
+        await serviceSupabase
+          .from('receipts')
+          .update({ 
+            status: 'expense_created'
+          })
+          .eq('id', receiptId);
+          
+      } else {
+        console.error(`❌ Failed to create expense from OCR data:`, expenseResult.error);
+        
+        // Update status to indicate expense creation failure but keep the OCR data
+        await serviceSupabase
+          .from('receipts')
+          .update({ 
+            status: 'expense_creation_failed'
+          })
+          .eq('id', receiptId);
+      }
+      
     } else {
       console.error(`❌ OCR failed for receipt ${receiptId}:`, ocrResult.error);
       
@@ -274,7 +306,7 @@ async function processReceiptOCR(receiptId: string, fileUrl: string, supabase: a
     await serviceSupabase
       .from('receipts')
       .update({
-        status: 'ocr_failed'
+        status: 'processing_failed'
       })
       .eq('id', receiptId);
   }

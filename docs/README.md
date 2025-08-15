@@ -80,6 +80,7 @@ This documentation is organized into the following sections:
 5. **[Database Schema](./database-schema.md)** - Database structure and Row Level Security
 6. **[Security & Permissions](./security.md)** - Comprehensive security implementation and best practices
 7. **[Testing & QA](./testing.md)** - Complete testing strategy and quality assurance
+8. **[Automatic Expense Creation](./automatic-expense-creation.md)** - OCR data extraction to structured expenses
 - Error handling and retry logic
 
 ## 🛠️ Development Guidelines

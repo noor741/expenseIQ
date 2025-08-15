@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { Receipt, UploadResult } from '@/types/database';
 import * as FileSystem from 'expo-file-system';
 import uuid from 'react-native-uuid';
+import { apiClient } from './apiClient';
 
 export class ReceiptService {
   
@@ -213,6 +214,101 @@ export class ReceiptService {
       return !dbError;
     } catch (error) {
       return false;
+    }
+  }
+
+  /**
+   * Get receipts that are ready for expense creation (processed but no expense created)
+   */
+  static async getReceiptsReadyForExpenses(userId: string): Promise<Receipt[]> {
+    try {
+      const response = await apiClient.getReceiptsReadyForExpenses();
+      return response.data?.receipts || [];
+    } catch (error) {
+      console.error('Failed to fetch ready receipts:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Create expense from a receipt's OCR data
+   */
+  static async createExpenseFromReceipt(receiptId: string): Promise<{
+    success: boolean;
+    expenseId?: string;
+    itemsCreated?: number;
+    error?: string;
+  }> {
+    try {
+      const response = await apiClient.createExpenseFromReceipt(receiptId);
+      
+      if (response.success && response.data) {
+        return {
+          success: true,
+          expenseId: (response.data as any).expenseId,
+          itemsCreated: (response.data as any).itemsCreated
+        };
+      } else {
+        return {
+          success: false,
+          error: response.error || 'Failed to create expense'
+        };
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message || 'Failed to create expense'
+      };
+    }
+  }
+
+  /**
+   * Bulk create expenses from multiple receipts
+   */
+  static async bulkCreateExpenses(receiptIds: string[]): Promise<{
+    success: boolean;
+    results?: any[];
+    summary?: {
+      total: number;
+      successful: number;
+      failed: number;
+    };
+    error?: string;
+  }> {
+    try {
+      const response = await apiClient.bulkCreateExpenses(receiptIds);
+      
+      if (response.success && response.data) {
+        return {
+          success: true,
+          results: (response.data as any).results,
+          summary: (response.data as any).summary
+        };
+      } else {
+        return {
+          success: false,
+          error: response.error || 'Failed to create expenses'
+        };
+      }
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.response?.data?.message || error.message || 'Failed to create expenses'
+      };
+    }
+  }
+
+  /**
+   * Get expense statistics
+   */
+  static async getExpenseStats(startDate?: string, endDate?: string): Promise<any> {
+    try {
+      const response = await apiClient.getExpenseStats(startDate, endDate);
+      
+      return response.data || {};
+    } catch (error) {
+      console.error('Failed to fetch expense stats:', error);
+      return {};
     }
   }
 }

@@ -43,6 +43,32 @@ class ExpenseIQApiClient {
     }
   }
 
+  // ==================== GENERIC HTTP METHODS ====================
+  
+  async get<T>(endpoint: string): Promise<ApiResponse<T>> {
+    return this.makeRequest<T>(endpoint);
+  }
+
+  async post<T>(endpoint: string, data: any): Promise<ApiResponse<T>> {
+    return this.makeRequest<T>(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async put<T>(endpoint: string, data: any): Promise<ApiResponse<T>> {
+    return this.makeRequest<T>(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
+    return this.makeRequest<T>(endpoint, {
+      method: 'DELETE',
+    });
+  }
+
   // ==================== RECEIPTS API ====================
   
   async getReceipts(params: {
@@ -118,7 +144,7 @@ class ExpenseIQApiClient {
     receipt_id: string;
     merchant_name?: string;
     transaction_date: string;
-    currency?: string;
+    currency?: string; // Default: CAD
     subtotal?: number;
     tax?: number;
     total: number;
@@ -230,6 +256,35 @@ class ExpenseIQApiClient {
     return this.makeRequest('/users', {
       method: 'DELETE',
     });
+  }
+
+  // ==================== EXPENSE PROCESSING API ====================
+  
+  async getReceiptsReadyForExpenses() {
+    return this.makeRequest('/expense-processing/ready-receipts');
+  }
+
+  async createExpenseFromReceipt(receiptId: string) {
+    return this.makeRequest('/expense-processing/create-from-receipt', {
+      method: 'POST',
+      body: JSON.stringify({ receiptId }),
+    });
+  }
+
+  async bulkCreateExpenses(receiptIds: string[]) {
+    return this.makeRequest('/expense-processing/bulk-create', {
+      method: 'POST',
+      body: JSON.stringify({ receiptIds }),
+    });
+  }
+
+  async getExpenseStats(startDate?: string, endDate?: string) {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    
+    const query = params.toString();
+    return this.makeRequest(`/expense-processing/stats${query ? `?${query}` : ''}`);
   }
 }
 
