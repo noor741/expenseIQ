@@ -202,6 +202,7 @@ class ExpenseIQApiClient {
   async createCategory(data: {
     name: string;
     description?: string;
+    color?: string;
   }) {
     return this.makeRequest('/categories', {
       method: 'POST',
