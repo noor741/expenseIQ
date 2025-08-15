@@ -7,6 +7,11 @@ interface ApiResponse<T = any> {
   message?: string;
 }
 
+interface ReadyReceiptsResponse {
+  receipts: any[];
+  count: number;
+}
+
 class ExpenseIQApiClient {
   private baseUrl: string;
 
@@ -260,8 +265,8 @@ class ExpenseIQApiClient {
 
   // ==================== EXPENSE PROCESSING API ====================
   
-  async getReceiptsReadyForExpenses() {
-    return this.makeRequest('/expense-processing/ready-receipts');
+  async getReceiptsReadyForExpenses(): Promise<ApiResponse<ReadyReceiptsResponse>> {
+    return this.makeRequest<ReadyReceiptsResponse>('/expense-processing/ready-receipts');
   }
 
   async createExpenseFromReceipt(receiptId: string) {
