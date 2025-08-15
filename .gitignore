@@ -90,6 +90,17 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+
+app-example
+.env
+.env.local
+
+node_modules
+.env
+.env.local
+
+node_modules
+=======
 # Temporary folders
 tmp/
 temp/
@@ -145,3 +156,4 @@ coverage/
 .env.local
 
 node_modules
+
