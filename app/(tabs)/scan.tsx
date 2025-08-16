@@ -1,19 +1,20 @@
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { apiClient } from '@/services/apiClient';
+import { UserPreferencesService } from '@/services/UserPreferencesService';
 import { CameraType, CameraView, useCameraPermissions } from 'expo-camera';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Button,
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Button,
+    Image,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import uuid from 'react-native-uuid';
 
@@ -92,6 +93,9 @@ export default function ScanScreen() {
     setIsUploading(true);
     
     try {
+      // Get user's preferred currency for the expense creation
+      const userCurrency = await UserPreferencesService.getDefaultCurrency();
+      
       const receiptId = uuid.v4() as string;
       
       // Step 1: Read the file and convert to base64
@@ -125,16 +129,17 @@ export default function ScanScreen() {
         throw new Error(`Storage upload failed: ${uploadError.message}`);
       }
 
-      // Step 4: Create receipt record using API with the file path (not public URL since bucket is private)
+      // Step 4: Create receipt record using API (this will trigger OCR processing)
       const result = await apiClient.createReceipt({
-        file_url: filename, // Use the file path instead of public URL for private storage
-        status: 'uploaded'
+        file_url: filename, // Use the file path for private storage
+        status: 'uploaded',
+        preferred_currency: userCurrency // Pass user's preferred currency
       });
       
       if (result.success) {
         Alert.alert(
           'Success!', 
-          'Receipt uploaded and saved to your account.',
+          'Receipt uploaded successfully!',
           [
             {
               text: 'OK',

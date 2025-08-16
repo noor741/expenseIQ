@@ -65,8 +65,7 @@ export default function ForgotPasswordScreen() {
           'Please check your email and click the reset link. It will open a secure web page where you can set your new password. After resetting, return to the app to log in.',
           [
             {
-              text: 'OK',
-              onPress: () => console.log('Password reset email sent to:', email)
+              text: 'OK'
             }
           ]
         );
