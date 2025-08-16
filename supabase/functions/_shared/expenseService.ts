@@ -13,15 +13,13 @@ export class ExpenseService {
   /**
    * Create expense and items from OCR data automatically
    */
-  async createFromOCR(receiptId: string, ocrData: any, userId: string): Promise<{
+  async createFromOCR(receiptId: string, ocrData: any, userId: string, currency: string = 'USD'): Promise<{
     success: boolean;
     expenseId?: string;
     itemsCreated?: number;
     error?: string;
   }> {
     try {
-      console.log(`📊 Creating expense from OCR data for receipt ${receiptId}`);
-      
       // Extract data from Azure OCR response
       const extractedData = this.extractOCRData(ocrData);
       
@@ -41,7 +39,7 @@ export class ExpenseService {
           receipt_id: receiptId,
           merchant_name: extractedData.merchantName || 'Unknown Merchant',
           transaction_date: extractedData.transactionDate || new Date().toISOString().split('T')[0],
-          currency: 'CAD',
+          currency: currency,
           subtotal: extractedData.subtotal || 0,
           tax: extractedData.tax || 0,
           total: extractedData.total || 0,

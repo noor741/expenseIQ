@@ -73,7 +73,7 @@ BEGIN
             NEW.id,
             merchant_name,
             transaction_date,
-            'USD',
+            'CAD', -- Updated to use CAD as default - should be dynamic based on user preference
             subtotal_amount,
             tax_amount,
             total_amount,
@@ -151,12 +151,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create trigger for automatic expense creation
-DROP TRIGGER IF EXISTS trigger_create_expense_from_receipt ON receipts;
-CREATE TRIGGER trigger_create_expense_from_receipt
-    AFTER UPDATE ON receipts
-    FOR EACH ROW
-    EXECUTE FUNCTION create_expense_from_receipt();
+-- Create trigger for automatic expense creation (DISABLED - using Edge Functions instead)
+-- DROP TRIGGER IF EXISTS trigger_create_expense_from_receipt ON receipts;
+-- CREATE TRIGGER trigger_create_expense_from_receipt
+--     AFTER UPDATE ON receipts
+--     FOR EACH ROW
+--     EXECUTE FUNCTION create_expense_from_receipt();
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_receipts_status ON receipts(status);

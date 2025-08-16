@@ -43,15 +43,86 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const pathSegments = url.pathname.split('/').filter(Boolean);
     const receiptId = pathSegments[pathSegments.length - 1];
+    const isReprocessRequest = pathSegments[pathSegments.length - 1] === 'reprocess';
+    const actualReceiptId = isReprocessRequest ? pathSegments[pathSegments.length - 2] : receiptId;
+
+    // Handle reprocess requests
+    if (isReprocessRequest && req.method === 'POST') {
+      
+      if (!actualReceiptId || actualReceiptId === 'receipts') {
+        return createErrorResponse('Receipt ID required for reprocessing');
+      }
+
+      if (!user) {
+        return createErrorResponse('Authentication required for reprocessing', 401);
+      }
+
+      try {
+        // Get the receipt to verify ownership and get file_url
+        const { data: receiptData, error: fetchError } = await supabase
+          .from('receipts')
+          .select('file_url, user_id, status')
+          .eq('id', actualReceiptId)
+          .single();
+
+        if (fetchError || !receiptData) {
+          return createErrorResponse('Receipt not found', 404);
+        }
+
+        if (receiptData.user_id !== user.id) {
+          return createErrorResponse('Unauthorized access to receipt', 403);
+        }
+
+        // Update status to processing
+        const { error: updateError } = await supabase
+          .from('receipts')
+          .update({ 
+            status: 'processing',
+            raw_ocr_json: null, // Clear previous OCR data
+            processed_at: null
+          })
+          .eq('id', actualReceiptId);
+
+        if (updateError) {
+          return createErrorResponse('Failed to update receipt status');
+        }
+
+        // Get user's preferred currency
+        const { data: userPrefs } = await supabase
+          .from('users')
+          .select('preferences')
+          .eq('id', user.id)
+          .single();
+
+        const preferred_currency = userPrefs?.preferences?.currency || 'USD';
+
+        // Trigger OCR processing asynchronously
+        if (receiptData.file_url) {
+          processReceiptOCR(actualReceiptId, receiptData.file_url, supabase, user.id, preferred_currency).catch(error => {
+            console.error(`❌ Reprocess OCR failed for receipt ${actualReceiptId}:`, error);
+          });
+        }
+
+        return createResponse({ 
+          success: true, 
+          message: 'Receipt reprocessing started',
+          receiptId: actualReceiptId 
+        });
+
+      } catch (error) {
+        console.error('Reprocess error:', error);
+        return createErrorResponse('Failed to reprocess receipt');
+      }
+    }
 
     switch (req.method) {
       case 'GET':
-        if (receiptId && receiptId !== 'receipts') {
+        if (actualReceiptId && actualReceiptId !== 'receipts') {
           // Get single receipt
           const { data, error } = await supabase
             .from('receipts')
             .select('*')
-            .eq('id', receiptId)
+            .eq('id', actualReceiptId)
             .eq('user_id', user.id)
             .single();
 
@@ -104,7 +175,7 @@ Deno.serve(async (req) => {
           return createErrorResponse('Authentication required for creating receipts', 401);
         }
         
-        const { file_url, status = 'uploaded', raw_ocr_json } = await req.json();
+        const { file_url, status = 'uploaded', raw_ocr_json, preferred_currency } = await req.json();
 
         if (!file_url) {
           return createErrorResponse('file_url is required');
@@ -128,7 +199,7 @@ Deno.serve(async (req) => {
 
         // 🤖 Trigger OCR processing asynchronously (don't wait for it)
         if (file_url && status === 'uploaded') {
-          processReceiptOCR(data.id, file_url, supabase, user.id).catch(error => {
+          processReceiptOCR(data.id, file_url, supabase, user.id, preferred_currency || 'USD').catch(error => {
             console.error(`❌ OCR processing failed for receipt ${data.id}:`, error);
           });
         }
@@ -137,7 +208,7 @@ Deno.serve(async (req) => {
 
       case 'PUT':
         // Update receipt
-        if (!receiptId || receiptId === 'receipts') {
+        if (!actualReceiptId || actualReceiptId === 'receipts') {
           return createErrorResponse('Receipt ID required for update');
         }
 
@@ -153,7 +224,7 @@ Deno.serve(async (req) => {
         const { data: updatedData, error: updateError } = await supabase
           .from('receipts')
           .update(filteredData)
-          .eq('id', receiptId)
+          .eq('id', actualReceiptId)
           .eq('user_id', user.id)
           .select()
           .single();
@@ -166,7 +237,7 @@ Deno.serve(async (req) => {
 
       case 'DELETE':
         // Delete receipt
-        if (!receiptId || receiptId === 'receipts') {
+        if (!actualReceiptId || actualReceiptId === 'receipts') {
           return createErrorResponse('Receipt ID required for deletion');
         }
 
@@ -174,7 +245,7 @@ Deno.serve(async (req) => {
         const { data: receipt, error: fetchError } = await supabase
           .from('receipts')
           .select('file_url')
-          .eq('id', receiptId)
+          .eq('id', actualReceiptId)
           .eq('user_id', user.id)
           .single();
 
@@ -193,7 +264,7 @@ Deno.serve(async (req) => {
         const { error: deleteError } = await supabase
           .from('receipts')
           .delete()
-          .eq('id', receiptId)
+          .eq('id', actualReceiptId)
           .eq('user_id', user.id);
 
         if (deleteError) {
@@ -217,21 +288,12 @@ Deno.serve(async (req) => {
 /**
  * Process OCR for a receipt asynchronously and create expense records
  */
-async function processReceiptOCR(receiptId: string, fileUrl: string, supabase: any, userId: string) {
+async function processReceiptOCR(receiptId: string, fileUrl: string, supabase: any, userId: string, currency: string = 'USD') {
   try {
-    console.log(`🚀 Starting OCR processing for receipt ${receiptId}`);
-    
     // Process the receipt with Azure Document Intelligence
     const ocrResult = await azureOCR.processReceipt(fileUrl);
     
     if (ocrResult.success && ocrResult.data) {
-      console.log(`✅ OCR completed for receipt ${receiptId}`);
-      console.log('📋 Extracted Data Summary:');
-      console.log(`   Merchant: ${ocrResult.data?.merchantName || 'N/A'}`);
-      console.log(`   Total: $${ocrResult.data?.total || 'N/A'}`);
-      console.log(`   Date: ${ocrResult.data?.transactionDate || 'N/A'}`);
-      console.log(`   Items: ${ocrResult.data?.items?.length || 0} items found`);
-      console.log(`   Confidence: ${((ocrResult.confidence || 0) * 100).toFixed(1)}%`);
       
       // Create service role client to bypass RLS for system updates
       const serviceSupabase = createServiceSupabaseClient();
@@ -257,11 +319,9 @@ async function processReceiptOCR(receiptId: string, fileUrl: string, supabase: a
       console.log(`🏗️ Creating expense from OCR data for receipt ${receiptId}`);
       
       // Create expense and expense items using the enhanced service
-      const expenseResult = await expenseService.createFromOCR(receiptId, ocrResult.rawData, userId);
+      const expenseResult = await expenseService.createFromOCR(receiptId, ocrResult.rawData, userId, currency);
       
       if (expenseResult.success) {
-        console.log(`🎉 Successfully created expense ${expenseResult.expenseId} with ${expenseResult.itemsCreated} items`);
-        
         // Update receipt status to indicate successful expense creation
         await serviceSupabase
           .from('receipts')

@@ -98,6 +98,7 @@ class ExpenseIQApiClient {
     file_url: string;
     status?: string;
     raw_ocr_json?: any;
+    preferred_currency?: string;
   }) {
     return this.makeRequest('/receipts', {
       method: 'POST',
@@ -149,7 +150,7 @@ class ExpenseIQApiClient {
     receipt_id: string;
     merchant_name?: string;
     transaction_date: string;
-    currency?: string; // Default: CAD
+    currency?: string; // Default: USD
     subtotal?: number;
     tax?: number;
     total: number;
@@ -202,6 +203,7 @@ class ExpenseIQApiClient {
   async createCategory(data: {
     name: string;
     description?: string;
+    color?: string;
   }) {
     return this.makeRequest('/categories', {
       method: 'POST',
@@ -269,17 +271,17 @@ class ExpenseIQApiClient {
     return this.makeRequest<ReadyReceiptsResponse>('/expense-processing/ready-receipts');
   }
 
-  async createExpenseFromReceipt(receiptId: string) {
+  async createExpenseFromReceipt(receiptId: string, currency: string = 'USD') {
     return this.makeRequest('/expense-processing/create-from-receipt', {
       method: 'POST',
-      body: JSON.stringify({ receiptId }),
+      body: JSON.stringify({ receiptId, currency }),
     });
   }
 
-  async bulkCreateExpenses(receiptIds: string[]) {
+  async bulkCreateExpenses(receiptIds: string[], currency: string = 'USD') {
     return this.makeRequest('/expense-processing/bulk-create', {
       method: 'POST',
-      body: JSON.stringify({ receiptIds }),
+      body: JSON.stringify({ receiptIds, currency }),
     });
   }
 
