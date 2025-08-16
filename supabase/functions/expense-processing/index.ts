@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
       case 'POST':
         if (action === 'create-from-receipt') {
           // Create expense from existing receipt
-          const { receiptId } = await req.json();
+          const { receiptId, currency = 'USD' } = await req.json();
           
           if (!receiptId) {
             return createErrorResponse('receiptId is required');
@@ -62,7 +62,8 @@ Deno.serve(async (req) => {
           const result = await expenseService.createFromOCR(
             receiptId,
             receipt.raw_ocr_json,
-            user.id
+            user.id,
+            currency
           );
 
           if (result.success) {
@@ -86,7 +87,7 @@ Deno.serve(async (req) => {
 
         if (action === 'bulk-create') {
           // Bulk create expenses from multiple receipts
-          const { receiptIds } = await req.json();
+          const { receiptIds, currency = 'USD' } = await req.json();
           
           if (!Array.isArray(receiptIds) || receiptIds.length === 0) {
             return createErrorResponse('receiptIds array is required');
@@ -137,7 +138,8 @@ Deno.serve(async (req) => {
               const result = await expenseService.createFromOCR(
                 receiptId,
                 receipt.raw_ocr_json,
-                user.id
+                user.id,
+                currency
               );
 
               if (result.success) {

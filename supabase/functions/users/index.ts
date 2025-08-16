@@ -112,20 +112,71 @@ Deno.serve(async (req) => {
         return createResponse({ success: true, data: updatedUser });
 
       case 'DELETE':
-        // Delete user account (soft delete - just mark as deleted)
-        const { error: deleteError } = await supabase
-          .from('users')
-          .update({ 
-            deleted_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', user.id);
+        // HARD DELETE - Permanently delete user and all associated data
+        try {
+          // Delete in order to respect foreign key constraints
+          // 1. Delete expenses (references receipts)
+          const { error: expensesError } = await supabase
+            .from('expenses')
+            .delete()
+            .in('receipt_id', 
+              supabase
+                .from('receipts')
+                .select('id')
+                .eq('user_id', user.id)
+            );
 
-        if (deleteError) {
-          return createErrorResponse(`Failed to delete user: ${deleteError.message}`);
+          if (expensesError) {
+            console.error('Error deleting expenses:', expensesError);
+          }
+
+          // 2. Delete receipts (references users)
+          const { error: receiptsError } = await supabase
+            .from('receipts')
+            .delete()
+            .eq('user_id', user.id);
+
+          if (receiptsError) {
+            console.error('Error deleting receipts:', receiptsError);
+          }
+
+          // 3. Delete categories (references users)
+          const { error: categoriesError } = await supabase
+            .from('categories')
+            .delete()
+            .eq('user_id', user.id);
+
+          if (categoriesError) {
+            console.error('Error deleting categories:', categoriesError);
+          }
+
+          // 4. Delete user record
+          const { error: userError } = await supabase
+            .from('users')
+            .delete()
+            .eq('id', user.id);
+
+          if (userError) {
+            return createErrorResponse(`Failed to delete user profile: ${userError.message}`);
+          }
+
+          // 5. Delete from auth.users (this removes the actual authentication)
+          const { error: authError } = await supabase.auth.admin.deleteUser(user.id);
+
+          if (authError) {
+            console.error('Error deleting auth user:', authError);
+            // Continue anyway as the profile data is already deleted
+          }
+
+          return createResponse({ 
+            success: true, 
+            message: 'User account and all associated data permanently deleted' 
+          });
+
+        } catch (error) {
+          console.error('Error during account deletion:', error);
+          return createErrorResponse('Failed to complete account deletion. Some data may remain.');
         }
-
-        return createResponse({ success: true, message: 'User account deleted successfully' });
 
       default:
         return createErrorResponse('Method not allowed', 405);

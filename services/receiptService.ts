@@ -45,7 +45,8 @@ export class ReceiptService {
   static async uploadReceipt(
     imageUri: string, 
     userId: string,
-    source: 'camera' | 'gallery' = 'camera'
+    source: 'camera' | 'gallery' = 'camera',
+    currency: string = 'USD'
   ): Promise<UploadResult> {
     try {
       const receiptId = uuid.v4() as string;
@@ -233,14 +234,14 @@ export class ReceiptService {
   /**
    * Create expense from a receipt's OCR data
    */
-  static async createExpenseFromReceipt(receiptId: string): Promise<{
+  static async createExpenseFromReceipt(receiptId: string, currency: string = 'USD'): Promise<{
     success: boolean;
     expenseId?: string;
     itemsCreated?: number;
     error?: string;
   }> {
     try {
-      const response = await apiClient.createExpenseFromReceipt(receiptId);
+      const response = await apiClient.createExpenseFromReceipt(receiptId, currency);
       
       if (response.success && response.data) {
         return {
@@ -265,7 +266,7 @@ export class ReceiptService {
   /**
    * Bulk create expenses from multiple receipts
    */
-  static async bulkCreateExpenses(receiptIds: string[]): Promise<{
+  static async bulkCreateExpenses(receiptIds: string[], currency: string = 'USD'): Promise<{
     success: boolean;
     results?: any[];
     summary?: {
@@ -276,7 +277,7 @@ export class ReceiptService {
     error?: string;
   }> {
     try {
-      const response = await apiClient.bulkCreateExpenses(receiptIds);
+      const response = await apiClient.bulkCreateExpenses(receiptIds, currency);
       
       if (response.success && response.data) {
         return {
