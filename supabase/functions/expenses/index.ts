@@ -211,23 +211,113 @@ Deno.serve(async (req) => {
         return createResponse({ success: true, data: updatedExpense });
 
       case 'DELETE':
-        // Delete expense and all its items
+        // Delete expense and all related data including receipt image
         if (!expenseId || expenseId === 'expenses') {
           return createErrorResponse('Expense ID required for deletion');
         }
 
-        // Verify expense belongs to user and delete
-        const { error: deleteError } = await supabase
-          .from('expenses')
-          .delete()
-          .eq('id', expenseId)
-          .eq('receipts.user_id', user.id);
+        try {
+          // First, get the expense with its receipt information
+          const { data: expenseData, error: fetchError } = await supabase
+            .from('expenses')
+            .select('id, receipt_id')
+            .eq('id', expenseId)
+            .single();
 
-        if (deleteError) {
-          return createErrorResponse(`Failed to delete expense: ${deleteError.message}`);
+          if (fetchError) {
+            return createErrorResponse(`Expense not found: ${fetchError.message}`, 404);
+          }
+
+          // Verify ownership by checking if expense is linked to user's receipt
+          if (expenseData.receipt_id) {
+            const { data: receiptCheck, error: receiptCheckError } = await supabase
+              .from('receipts')
+              .select('user_id')
+              .eq('id', expenseData.receipt_id)
+              .single();
+
+            if (receiptCheckError || receiptCheck?.user_id !== user.id) {
+              return createErrorResponse('Unauthorized: This expense does not belong to you', 403);
+            }
+          }
+
+          // Get receipt info if it exists
+          let receiptData = null;
+          if (expenseData.receipt_id) {
+            const { data: receipt, error: receiptError } = await supabase
+              .from('receipts')
+              .select('id, user_id, file_url')
+              .eq('id', expenseData.receipt_id)
+              .single();
+
+            if (receipt && receipt.user_id === user.id) {
+              receiptData = receipt;
+            } else if (receiptError) {
+              console.warn('Receipt not found or unauthorized:', receiptError.message);
+            }
+          }
+
+          // Delete expense items first (cascade should handle this, but being explicit)
+          const { error: itemsDeleteError } = await supabase
+            .from('expense_items')
+            .delete()
+            .eq('expense_id', expenseId);
+
+          if (itemsDeleteError) {
+            console.warn('Warning: Failed to delete expense items:', itemsDeleteError.message);
+          }
+
+          // Delete the expense record
+          const { error: expenseDeleteError } = await supabase
+            .from('expenses')
+            .delete()
+            .eq('id', expenseId);
+
+          if (expenseDeleteError) {
+            return createErrorResponse(`Failed to delete expense: ${expenseDeleteError.message}`);
+          }
+
+          // Delete the receipt image from storage if it exists
+          if (receiptData?.file_url) {
+            // Extract the file path from the URL (remove the base URL if present)
+            let filePath = receiptData.file_url;
+            if (filePath.includes('/storage/v1/object/public/receipts/')) {
+              filePath = filePath.split('/storage/v1/object/public/receipts/')[1];
+            } else if (filePath.includes('receipts/')) {
+              filePath = filePath.split('receipts/')[1];
+            }
+            
+            const { error: storageError } = await supabase.storage
+              .from('receipts')
+              .remove([filePath]);
+            
+            if (storageError) {
+              console.error('Failed to delete receipt image from storage:', storageError);
+            }
+          }
+
+          // Delete the receipt record if it exists
+          if (receiptData) {
+            const { error: receiptDeleteError } = await supabase
+              .from('receipts')
+              .delete()
+              .eq('id', receiptData.id)
+              .eq('user_id', user.id);
+
+            if (receiptDeleteError) {
+              console.error('Failed to delete receipt record:', receiptDeleteError);
+            }
+          }
+
+          return createResponse({ 
+            success: true, 
+            message: 'Expense and all related data deleted successfully' 
+          });
+
+        } catch (error) {
+          console.error('Error during expense deletion:', error);
+          return createErrorResponse(`Failed to delete expense: ${error.message || 'Unknown error'}`);
         }
-
-        return createResponse({ success: true, message: 'Expense deleted successfully' });
 
       default:
         return createErrorResponse('Method not allowed', 405);

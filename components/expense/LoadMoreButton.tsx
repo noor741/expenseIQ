@@ -1,8 +1,7 @@
-import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
+import { useAppColorScheme } from "@/hooks/useAppColorScheme";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { StyleSheet, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 interface LoadMoreButtonProps {
   hasMorePages: boolean;
@@ -15,21 +14,25 @@ export function LoadMoreButton({
   loadingMore,
   onLoadMore,
 }: LoadMoreButtonProps) {
+  const colorScheme = useAppColorScheme();
+  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+  
   if (!hasMorePages) return null;
 
   return (
-    <ThemedView style={styles.loadMoreContainer}>
+    <View style={[styles.loadMoreContainer, { backgroundColor: theme.background }]}>
       <TouchableOpacity
         style={[
           styles.loadMoreButton,
+          { backgroundColor: theme.cardBackground, borderColor: "#007AFF" },
           loadingMore && styles.loadMoreButtonDisabled,
         ]}
         onPress={onLoadMore}
         disabled={loadingMore}
       >
-        <ThemedText style={styles.loadMoreText}>
+        <Text style={[styles.loadMoreText, { color: "#007AFF" }]}>
           {loadingMore ? "Loading..." : "Load More"}
-        </ThemedText>
+        </Text>
         {loadingMore && (
           <Ionicons
             name="refresh"
@@ -39,7 +42,7 @@ export function LoadMoreButton({
           />
         )}
       </TouchableOpacity>
-    </ThemedView>
+    </View>
   );
 }
 
@@ -49,12 +52,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   loadMoreButton: {
-    backgroundColor: "#f8f9fa",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 25,
     borderWidth: 1,
-    borderColor: "#007AFF",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -64,7 +65,6 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   loadMoreText: {
-    color: "#007AFF",
     fontSize: 16,
     fontWeight: "600",
   },
@@ -72,3 +72,17 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 });
+
+const lightTheme = {
+  background: '#f8f9fa',
+  cardBackground: '#ffffff',
+  text: '#000000',
+  secondaryText: '#666666',
+};
+
+const darkTheme = {
+  background: '#000000',
+  cardBackground: '#1c1c1e',
+  text: '#ffffff',
+  secondaryText: '#999999',
+};
