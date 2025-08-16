@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
+import { router } from 'expo-router';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
 
@@ -14,6 +15,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasRedirected, setHasRedirected] = useState(false);
 
   useEffect(() => {
     const getSession = async () => {
@@ -30,9 +32,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     getSession();
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      const newUser = session?.user ?? null;
+      setUser(newUser);
       setLoading(false);
+      
+      console.log('Auth state changed:', event, newUser ? 'User logged in' : 'No user');
+      
+      // Handle authentication state changes with redirect prevention
+      if (event === 'SIGNED_OUT') {
+        setHasRedirected(false);
+        router.replace('/(auth)/login');
+      } else if (event === 'SIGNED_IN' && newUser && !hasRedirected) {
+        // User successfully signed in, redirect to main app
+        setHasRedirected(true);
+        router.replace('/(tabs)');
+      }
     });
 
     return () => {
@@ -41,8 +56,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      // Explicitly redirect to login after signing out
+      router.replace('/(auth)/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   return (

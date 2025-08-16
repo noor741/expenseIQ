@@ -1,7 +1,7 @@
+import { useAppColorScheme } from '@/hooks/useAppColorScheme';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
     Alert,
     Linking,
@@ -13,22 +13,7 @@ import {
 } from 'react-native';
 
 export default function HelpSupportScreen() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  useEffect(() => {
-    loadThemeSettings();
-  }, []);
-
-  const loadThemeSettings = async () => {
-    try {
-      const darkMode = await AsyncStorage.getItem('darkMode');
-      if (darkMode !== null) {
-        setIsDarkMode(JSON.parse(darkMode));
-      }
-    } catch (error) {
-      console.error('Error loading theme settings:', error);
-    }
-  };
+  const colorScheme = useAppColorScheme();
 
   const handleEmailSupport = () => {
     const email = 'support@expenseiq.com';
@@ -66,7 +51,7 @@ export default function HelpSupportScreen() {
     });
   };
 
-  const theme = isDarkMode ? darkTheme : lightTheme;
+  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -229,7 +214,7 @@ const lightTheme = {
 };
 
 const darkTheme = {
-  background: '#000000',
+  background: '#151718',
   cardBackground: '#1c1c1e',
   text: '#ffffff',
   secondaryText: '#999999',

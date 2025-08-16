@@ -1,11 +1,13 @@
 import { supabase } from '@/lib/supabase';
-import { validateEmail, validatePassword, validateConfirmPassword } from '@/utils/inputValidation';
+import { BiometricService } from '@/services/BiometricService';
+import { EncryptionService } from '@/services/EncryptionService';
+import { validateConfirmPassword, validateEmail, validatePassword } from '@/utils/inputValidation';
 import { Ionicons } from '@expo/vector-icons';
 import { defaultConfig } from '@tamagui/config/v4';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Dimensions, StatusBar, TouchableOpacity } from 'react-native';
-import { Button, Card, createTamagui, H2, Input, ScrollView, TamaguiProvider, Text, XStack, YStack } from 'tamagui';
+import { Button, Card, createTamagui, H2, Input, ScrollView, TamaguiProvider, Text, View, XStack, YStack } from 'tamagui';
 
 const config = createTamagui(defaultConfig);
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -23,7 +25,31 @@ export default function LoginScreen() {
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricType, setBiometricType] = useState('Biometric');
   const router = useRouter();
+
+  useEffect(() => {
+    checkBiometricAvailability();
+  }, []);
+
+  const checkBiometricAvailability = async () => {
+    try {
+      const available = await BiometricService.isAvailable();
+      setBiometricAvailable(available);
+      
+      if (available) {
+        const enabled = await BiometricService.isBiometricEnabled();
+        setBiometricEnabled(enabled);
+        
+        const type = await BiometricService.getBiometricTypeName();
+        setBiometricType(type);
+      }
+    } catch (error) {
+      console.error('Error checking biometric availability:', error);
+    }
+  };
 
   const validateLoginForm = () => {
     const emailError = validateEmail(email);
@@ -71,9 +97,42 @@ export default function LoginScreen() {
       if (error) {
         Alert.alert('Login Error', error.message);
       } else {
-        Alert.alert('Success', 'Logged in successfully!');
         console.log('User logged in:', data.user);
-        router.replace('/(tabs)');
+        
+        // Check if biometric is available and not yet enabled
+        if (biometricAvailable && !biometricEnabled) {
+          Alert.alert(
+            'Enable Biometric Login',
+            `Would you like to enable ${biometricType} login for faster access next time?`,
+            [
+              { text: 'Not Now', style: 'cancel' },
+              { 
+                text: 'Enable', 
+                onPress: async () => {
+                  try {
+                    const encryptedPassword = await EncryptionService.encryptPassword(password);
+                    const success = await BiometricService.enableBiometricLogin(
+                      email.trim(), 
+                      encryptedPassword
+                    );
+                    
+                    if (success) {
+                      setBiometricEnabled(true);
+                      Alert.alert('Success', `${biometricType} login enabled successfully!`);
+                    } else {
+                      Alert.alert('Error', 'Failed to enable biometric login');
+                    }
+                  } catch (err) {
+                    console.error('Error enabling biometric login:', err);
+                    Alert.alert('Error', 'Failed to enable biometric login');
+                  }
+                }
+              }
+            ]
+          );
+        }
+        
+        // AuthContext will handle navigation automatically - no manual router.replace needed
       }
     } catch (error) {
       Alert.alert('Error', 'An unexpected error occurred');
@@ -115,6 +174,46 @@ export default function LoginScreen() {
     } catch (error) {
       Alert.alert('Error', 'An unexpected error occurred');
       console.error('Registration error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    try {
+      setLoading(true);
+      console.log('Starting biometric login...');
+      
+      const credentials = await BiometricService.biometricLogin();
+      console.log('Biometric service result:', credentials ? 'credentials received' : 'no credentials');
+      
+      if (credentials) {
+        console.log('Decrypting password...');
+        // Decrypt the password
+        const decryptedPassword = await EncryptionService.decryptPassword(credentials.encryptedPassword);
+        console.log('Password decrypted, attempting login...');
+        
+        // Automatically sign in with stored credentials
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: credentials.email,
+          password: decryptedPassword,
+        });
+
+        if (error) {
+          console.error('Supabase login error:', error);
+          Alert.alert('Login Error', `Biometric login failed: ${error.message}`);
+        } else {
+          // Login successful - AuthContext will handle navigation automatically
+          console.log('Biometric login successful:', data.user);
+          // Don't show success alert or manual navigation - let AuthContext handle it
+        }
+      } else {
+        console.log('No credentials returned from biometric service');
+        Alert.alert('Authentication Failed', 'Biometric authentication was cancelled or failed.');
+      }
+    } catch (error) {
+      console.error('Biometric login error:', error);
+      Alert.alert('Error', `Biometric authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -368,6 +467,44 @@ export default function LoginScreen() {
                     : (activeTab === 'login' ? 'Sign In' : 'Sign Up')
                   }
                 </Button>
+
+                {/* Biometric Login Button - Only show on login tab when available */}
+                {activeTab === 'login' && biometricAvailable && biometricEnabled && (
+                  <>
+                    <XStack alignItems="center" space={10} marginTop={16} marginBottom={8}>
+                      <View height={1} backgroundColor="#e5e7eb" flex={1} />
+                      <Text fontSize={isTablet ? 14 : 13} color="#6b7280">or</Text>
+                      <View height={1} backgroundColor="#e5e7eb" flex={1} />
+                    </XStack>
+
+                    <Button
+                      backgroundColor="transparent"
+                      borderWidth={1}
+                      borderColor="#e5e7eb"
+                      color="#374151"
+                      height={isTablet ? 56 : 52}
+                      fontSize={isTablet ? 16 : 15}
+                      borderRadius={12}
+                      fontWeight="500"
+                      onPress={handleBiometricLogin}
+                      disabled={loading}
+                      opacity={loading ? 0.7 : 1}
+                      pressStyle={{ 
+                        scale: 0.98,
+                        backgroundColor: '#f9fafb'
+                      }}
+                      icon={
+                        <Ionicons 
+                          name={biometricType === 'Face ID' ? 'scan' : 'finger-print-outline'} 
+                          size={20} 
+                          color="#374151" 
+                        />
+                      }
+                    >
+                      Sign in with {biometricType}
+                    </Button>
+                  </>
+                )}
 
                 {activeTab === 'login' && (
                   <Text 

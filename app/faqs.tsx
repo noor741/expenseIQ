@@ -1,7 +1,7 @@
+import { useAppColorScheme } from '@/hooks/useAppColorScheme';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
     ScrollView,
     StyleSheet,
@@ -83,24 +83,9 @@ const FAQS: FAQ[] = [
 const CATEGORIES = ['All', 'Scanning', 'Categories', 'Settings', 'Security', 'Data', 'General'];
 
 export default function FAQsScreen() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const colorScheme = useAppColorScheme();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    loadThemeSettings();
-  }, []);
-
-  const loadThemeSettings = async () => {
-    try {
-      const darkMode = await AsyncStorage.getItem('darkMode');
-      if (darkMode !== null) {
-        setIsDarkMode(JSON.parse(darkMode));
-      }
-    } catch (error) {
-      console.error('Error loading theme settings:', error);
-    }
-  };
 
   const toggleExpanded = (id: string) => {
     const newExpanded = new Set(expandedItems);
@@ -116,7 +101,7 @@ export default function FAQsScreen() {
     ? FAQS 
     : FAQS.filter(faq => faq.category === selectedCategory);
 
-  const theme = isDarkMode ? darkTheme : lightTheme;
+  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -205,7 +190,7 @@ const lightTheme = {
 };
 
 const darkTheme = {
-  background: '#000000',
+  background: '#151718',
   cardBackground: '#1c1c1e',
   text: '#ffffff',
   secondaryText: '#999999',
