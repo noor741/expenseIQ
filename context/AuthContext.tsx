@@ -1,7 +1,9 @@
+
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import { router } from 'expo-router';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+
 
 
 interface AuthContextType {
@@ -20,10 +22,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const getSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         setUser(session?.user ?? null);
       } catch (error) {
-        console.error('Error getting session:', error);
+        console.error("Error getting session:", error);
         setUser(null);
       } finally {
         setLoading(false);
@@ -31,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     getSession();
+
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       const newUser = session?.user ?? null;
@@ -49,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         router.replace('/(tabs)');
       }
     });
+
 
     return () => {
       listener.subscription.unsubscribe();
@@ -75,6 +81,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 }
