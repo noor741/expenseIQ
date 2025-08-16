@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
           return createErrorResponse('Authentication required for creating receipts', 401);
         }
         
-        const { file_url, status = 'uploaded', raw_ocr_json } = await req.json();
+        const { file_url, status = 'uploaded', raw_ocr_json, preferred_currency } = await req.json();
 
         if (!file_url) {
           return createErrorResponse('file_url is required');
@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
 
         // 🤖 Trigger OCR processing asynchronously (don't wait for it)
         if (file_url && status === 'uploaded') {
-          processReceiptOCR(data.id, file_url, supabase, user.id).catch(error => {
+          processReceiptOCR(data.id, file_url, supabase, user.id, preferred_currency || 'USD').catch(error => {
             console.error(`❌ OCR processing failed for receipt ${data.id}:`, error);
           });
         }
@@ -217,21 +217,12 @@ Deno.serve(async (req) => {
 /**
  * Process OCR for a receipt asynchronously and create expense records
  */
-async function processReceiptOCR(receiptId: string, fileUrl: string, supabase: any, userId: string) {
+async function processReceiptOCR(receiptId: string, fileUrl: string, supabase: any, userId: string, currency: string = 'USD') {
   try {
-    console.log(`🚀 Starting OCR processing for receipt ${receiptId}`);
-    
     // Process the receipt with Azure Document Intelligence
     const ocrResult = await azureOCR.processReceipt(fileUrl);
     
     if (ocrResult.success && ocrResult.data) {
-      console.log(`✅ OCR completed for receipt ${receiptId}`);
-      console.log('📋 Extracted Data Summary:');
-      console.log(`   Merchant: ${ocrResult.data?.merchantName || 'N/A'}`);
-      console.log(`   Total: $${ocrResult.data?.total || 'N/A'}`);
-      console.log(`   Date: ${ocrResult.data?.transactionDate || 'N/A'}`);
-      console.log(`   Items: ${ocrResult.data?.items?.length || 0} items found`);
-      console.log(`   Confidence: ${((ocrResult.confidence || 0) * 100).toFixed(1)}%`);
       
       // Create service role client to bypass RLS for system updates
       const serviceSupabase = createServiceSupabaseClient();
@@ -257,11 +248,9 @@ async function processReceiptOCR(receiptId: string, fileUrl: string, supabase: a
       console.log(`🏗️ Creating expense from OCR data for receipt ${receiptId}`);
       
       // Create expense and expense items using the enhanced service
-      const expenseResult = await expenseService.createFromOCR(receiptId, ocrResult.rawData, userId);
+      const expenseResult = await expenseService.createFromOCR(receiptId, ocrResult.rawData, userId, currency);
       
       if (expenseResult.success) {
-        console.log(`🎉 Successfully created expense ${expenseResult.expenseId} with ${expenseResult.itemsCreated} items`);
-        
         // Update receipt status to indicate successful expense creation
         await serviceSupabase
           .from('receipts')

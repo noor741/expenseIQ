@@ -32,11 +32,10 @@ interface ExpenseCreationResult {
 export async function createExpenseFromOCR(
   receiptId: string,
   ocrData: OCRData,
-  userId: string
+  userId: string,
+  currency: string = 'USD'
 ): Promise<ExpenseCreationResult> {
   try {
-    console.log(`📊 Creating expense from OCR data for receipt ${receiptId}`);
-    
     const serviceSupabase = createServiceSupabaseClient();
     
     // Parse transaction date
@@ -47,7 +46,7 @@ export async function createExpenseFromOCR(
       receipt_id: receiptId,
       merchant_name: ocrData.merchantName || 'Unknown Merchant',
       transaction_date: transactionDate,
-      currency: 'CAD', // Default to CAD for Canadian users
+      currency: currency, // Use provided currency
       subtotal: ocrData.subtotal || 0,
       tax: ocrData.tax || 0,
       total: ocrData.total || ocrData.subtotal || 0,
@@ -71,12 +70,12 @@ export async function createExpenseFromOCR(
       };
     }
 
-    console.log(`✅ Expense created with ID: ${expense.id}`);
+    
 
     // Create expense items if available
     let itemsCreated = 0;
     if (ocrData.items && ocrData.items.length > 0) {
-      console.log(`🛒 Creating ${ocrData.items.length} expense items...`);
+      
       
       const expenseItems = ocrData.items
         .filter(item => item.description && item.description.trim() !== '')
@@ -101,7 +100,7 @@ export async function createExpenseFromOCR(
           // Don't fail the entire process if items fail
         } else {
           itemsCreated = items?.length || 0;
-          console.log(`✅ Created ${itemsCreated} expense items`);
+          
         }
       }
     } else {
@@ -136,7 +135,7 @@ export async function createExpenseFromOCR(
       })
       .eq('id', receiptId);
 
-    console.log(`🎉 Successfully created expense and ${itemsCreated} items from OCR data`);
+    
 
     return {
       success: true,

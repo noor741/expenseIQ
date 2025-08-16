@@ -1,8 +1,8 @@
 import { useAuth } from '@/context/AuthContext';
 import { useAppColorScheme, useThemeMode } from '@/hooks/useAppColorScheme';
 import { apiClient } from '@/services/apiClient';
+import { UserPreferencesService } from '@/services/UserPreferencesService';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -94,12 +94,14 @@ export default function SettingsScreen() {
 
   const loadSettings = async () => {
     try {
-      const currency = await AsyncStorage.getItem('defaultCurrency');
+      // First, migrate any legacy currency setting
+      await UserPreferencesService.migrateLegacyCurrency();
       
-      if (currency) {
-        const currencyObj = CURRENCIES.find(c => c.code === currency) || CURRENCIES[0];
-        setSelectedCurrency(currencyObj);
-      }
+      // Use UserPreferencesService instead of direct AsyncStorage
+      const currency = await UserPreferencesService.getDefaultCurrency();
+      
+      const currencyObj = CURRENCIES.find(c => c.code === currency) || CURRENCIES[0];
+      setSelectedCurrency(currencyObj);
       
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -115,9 +117,14 @@ export default function SettingsScreen() {
     setSelectedCurrency(currency);
     setShowCurrencyModal(false);
     try {
-      await AsyncStorage.setItem('defaultCurrency', currency.code);
+      // Use UserPreferencesService instead of direct AsyncStorage
+      await UserPreferencesService.setDefaultCurrency(currency.code);
     } catch (error) {
       console.error('Error saving currency setting:', error);
+      Alert.alert('Error', 'Failed to save currency setting. Please try again.');
+      // Revert the change on error
+      const prevCurrency = CURRENCIES.find(c => c.code === selectedCurrency.code) || CURRENCIES[0];
+      setSelectedCurrency(prevCurrency);
     }
   };
 
@@ -137,10 +144,6 @@ export default function SettingsScreen() {
         },
       ]
     );
-  };
-
-  const navigateToPersonalSettings = () => {
-    router.push('/personal-settings');
   };
 
   const navigateToManageCategories = () => {
@@ -193,22 +196,6 @@ export default function SettingsScreen() {
         <Text style={[styles.userEmail, { color: theme.secondaryText }]}>
           {user?.email}
         </Text>
-      </View>
-
-      {/* Personal Settings */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>Personal Settings</Text>
-        
-        <TouchableOpacity 
-          style={[styles.settingItem, { backgroundColor: theme.cardBackground }]}
-          onPress={navigateToPersonalSettings}
-        >
-          <View style={styles.settingLeft}>
-            <Ionicons name="person-outline" size={20} color={theme.text} />
-            <Text style={[styles.settingText, { color: theme.text }]}>Personal Information</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={theme.secondaryText} />
-        </TouchableOpacity>
       </View>
 
       {/* Preferences */}
