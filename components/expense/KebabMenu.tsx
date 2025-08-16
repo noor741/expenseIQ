@@ -37,7 +37,7 @@ export function KebabMenu({
 
   // Calculate menu position
   const menuWidth = 150;
-  const menuHeight = isReceipt ? 60 : 100; // 1 item for receipts, 2 items for expenses
+  const menuHeight = isReceipt ? 100 : 100; // 2 items for both receipts and expenses
   let menuX = position?.x || screenWidth / 2 - menuWidth / 2;
   let menuY = (position?.y || screenHeight / 2 - menuHeight / 2) + 5; // Add small gap below button
   
@@ -79,14 +79,26 @@ export function KebabMenu({
           ]}
         >
           {isReceipt ? (
-            // Receipt menu - only show Reanalyze option
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => handleSelect(onReanalyze!)}
-            >
-              <Ionicons name="refresh" size={16} color="#007AFF" />
-              <Text style={[styles.menuText, { color: theme.text }]}>Reanalyze</Text>
-            </TouchableOpacity>
+            // Receipt menu - show Reanalyze and Delete options
+            <>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => handleSelect(onReanalyze!)}
+              >
+                <Ionicons name="refresh" size={16} color="#007AFF" />
+                <Text style={[styles.menuText, { color: theme.text }]}>Reanalyze</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={() => handleSelect(onDelete!)}
+              >
+                <Ionicons name="trash-outline" size={16} color="#FF3B30" />
+                <Text style={[styles.menuText, { color: "#FF3B30" }]}>
+                  Delete
+                </Text>
+              </TouchableOpacity>
+            </>
           ) : (
             // Expense menu - show Edit and Delete options
             <>

@@ -131,6 +131,58 @@ export default function ExpenseScreen() {
     );
   };
 
+  const handleDeleteReceipt = async (receipt: ExpenseWithItems) => {
+    Alert.alert(
+      "Delete Receipt",
+      `Are you sure you want to permanently delete this receipt?\n\n${
+        receipt.merchant_name || "Unknown Store"
+      }\nUploaded: ${new Date(receipt.uploadDate || receipt.created_at || '').toLocaleDateString()}\n\nThis will delete:\n• The receipt record\n• The receipt image from storage\n• All related data\n\nThis action cannot be undone.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              console.log('🗑️ Attempting to delete receipt:', receipt.id);
+              
+              // Get the current session token
+              const { data: { session } } = await supabase.auth.getSession();
+              if (!session) {
+                Alert.alert("Error", "You must be logged in to delete receipts");
+                return;
+              }
+              
+              // Call the receipts DELETE API
+              const response = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/receipts/${receipt.id}`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${session.access_token}`,
+                  'Content-Type': 'application/json',
+                },
+              });
+
+              const responseData = await response.json();
+              console.log('🗑️ Delete receipt response:', response.status, responseData);
+
+              if (response.ok) {
+                // Remove from local state
+                setExpenses((prev) => prev.filter((e) => e.id !== receipt.id));
+                Alert.alert("Success", "Receipt and all related data deleted successfully");
+              } else {
+                const errorMsg = responseData?.message || 'Failed to delete receipt. Please try again.';
+                Alert.alert("Error", errorMsg);
+              }
+            } catch (err) {
+              console.error('🗑️ Delete receipt error:', err);
+              Alert.alert("Error", "Network error occurred while deleting receipt");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleDelete = async (expense: ExpenseWithItems) => {
     Alert.alert(
       "Delete Expense",
@@ -302,8 +354,12 @@ export default function ExpenseScreen() {
             if (expense && !expense.isReceipt) handleEdit(expense);
           }}
           onDelete={() => {
-            const expense = expenses.find((e) => e.id === kebabVisible);
-            if (expense && !expense.isReceipt) handleDelete(expense);
+            const item = expenses.find((e) => e.id === kebabVisible);
+            if (item?.isReceipt) {
+              handleDeleteReceipt(item);
+            } else if (item) {
+              handleDelete(item);
+            }
           }}
           onReanalyze={() => {
             const receipt = expenses.find((e) => e.id === kebabVisible);

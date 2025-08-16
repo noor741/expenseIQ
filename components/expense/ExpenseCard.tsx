@@ -85,7 +85,9 @@ export function ExpenseCard({
             <Text style={[styles.merchantName, { color: theme.text }]}>
               {item.merchant_name || "Unknown Store"}
             </Text>
-            <Text style={[styles.categoryText, { color: theme.secondaryText }]}>{item.category}</Text>
+            <Text style={[styles.categoryText, { color: theme.secondaryText }]}>
+              {item.category || "Uncategorized"}
+            </Text>
           </View>
         </View>
 
@@ -109,22 +111,22 @@ export function ExpenseCard({
             {formatCurrency(item.total, item.currency)}
           </Text>
 
-          {/* Show upload date for receipts instead of kebab menu */}
+          {/* Show upload date for receipts and kebab menu for actionable receipts */}
           {item.isReceipt ? (
             <View style={styles.receiptActions}>
               <Text style={[styles.uploadDate, { color: theme.secondaryText }]}>
                 {`Uploaded ${new Date(item.uploadDate || item.created_at || '').toLocaleDateString()}`}
               </Text>
-              {/* Show reanalyze button for failed/pending receipts */}
+              {/* Show kebab menu for failed/pending receipts */}
               {(item.receiptStatus === 'failed' || 
                 item.receiptStatus === 'uploaded' || 
                 item.receiptStatus === 'expense_creation_failed') && (
                 <TouchableOpacity 
                   ref={kebabButtonRef}
-                  style={styles.reanalyzeButton} 
+                  style={styles.kebabButton} 
                   onPress={handleKebabPress}
                 >
-                  <Ionicons name="refresh" size={16} color="#007AFF" />
+                  <Ionicons name="ellipsis-horizontal" size={16} color={theme.secondaryText} />
                 </TouchableOpacity>
               )}
             </View>
@@ -276,10 +278,6 @@ const styles = StyleSheet.create({
   },
   receiptActions: {
     alignItems: 'flex-end',
-  },
-  reanalyzeButton: {
-    padding: 4,
-    marginTop: 4,
   },
   detailsSection: {
     paddingHorizontal: 16,
