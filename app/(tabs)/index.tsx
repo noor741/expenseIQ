@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +18,7 @@ const transactions = [
 
 export default function TabIndexScreen() {
   return (
+
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f8fafc' }} edges={['top', 'left', 'right']}>
       <View style={{ flex: 1 }}>
         <ScrollView showsVerticalScrollIndicator={false}>
@@ -74,6 +74,7 @@ export default function TabIndexScreen() {
             </View>
           ))}
         </ScrollView>
+
       </View>
     </SafeAreaView>
   );

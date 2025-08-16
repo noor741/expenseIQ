@@ -7,6 +7,11 @@ interface ApiResponse<T = any> {
   message?: string;
 }
 
+interface ReadyReceiptsResponse {
+  receipts: any[];
+  count: number;
+}
+
 class ExpenseIQApiClient {
   private baseUrl: string;
 
@@ -43,6 +48,32 @@ class ExpenseIQApiClient {
     }
   }
 
+  // ==================== GENERIC HTTP METHODS ====================
+  
+  async get<T>(endpoint: string): Promise<ApiResponse<T>> {
+    return this.makeRequest<T>(endpoint);
+  }
+
+  async post<T>(endpoint: string, data: any): Promise<ApiResponse<T>> {
+    return this.makeRequest<T>(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async put<T>(endpoint: string, data: any): Promise<ApiResponse<T>> {
+    return this.makeRequest<T>(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
+    return this.makeRequest<T>(endpoint, {
+      method: 'DELETE',
+    });
+  }
+
   // ==================== RECEIPTS API ====================
   
   async getReceipts(params: {
@@ -67,6 +98,7 @@ class ExpenseIQApiClient {
     file_url: string;
     status?: string;
     raw_ocr_json?: any;
+    preferred_currency?: string;
   }) {
     return this.makeRequest('/receipts', {
       method: 'POST',
@@ -118,7 +150,7 @@ class ExpenseIQApiClient {
     receipt_id: string;
     merchant_name?: string;
     transaction_date: string;
-    currency?: string;
+    currency?: string; // Default: USD
     subtotal?: number;
     tax?: number;
     total: number;
@@ -171,6 +203,7 @@ class ExpenseIQApiClient {
   async createCategory(data: {
     name: string;
     description?: string;
+    color?: string;
   }) {
     return this.makeRequest('/categories', {
       method: 'POST',
@@ -230,6 +263,35 @@ class ExpenseIQApiClient {
     return this.makeRequest('/users', {
       method: 'DELETE',
     });
+  }
+
+  // ==================== EXPENSE PROCESSING API ====================
+  
+  async getReceiptsReadyForExpenses(): Promise<ApiResponse<ReadyReceiptsResponse>> {
+    return this.makeRequest<ReadyReceiptsResponse>('/expense-processing/ready-receipts');
+  }
+
+  async createExpenseFromReceipt(receiptId: string, currency: string = 'USD') {
+    return this.makeRequest('/expense-processing/create-from-receipt', {
+      method: 'POST',
+      body: JSON.stringify({ receiptId, currency }),
+    });
+  }
+
+  async bulkCreateExpenses(receiptIds: string[], currency: string = 'USD') {
+    return this.makeRequest('/expense-processing/bulk-create', {
+      method: 'POST',
+      body: JSON.stringify({ receiptIds, currency }),
+    });
+  }
+
+  async getExpenseStats(startDate?: string, endDate?: string) {
+    const params = new URLSearchParams();
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    
+    const query = params.toString();
+    return this.makeRequest(`/expense-processing/stats${query ? `?${query}` : ''}`);
   }
 }
 
