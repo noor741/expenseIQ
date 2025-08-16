@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
       case 'PUT':
         // Update user profile
         const updateData = await req.json();
-        const allowedFields = ['full_name', 'preferred_name', 'email'];
+        const allowedFields = ['full_name', 'preferred_name', 'email', 'phone_number'];
         const filteredData = Object.keys(updateData)
           .filter(key => allowedFields.includes(key))
           .reduce((obj, key) => {
@@ -114,6 +114,35 @@ Deno.serve(async (req) => {
       case 'DELETE':
         // HARD DELETE - Permanently delete user and all associated data
         try {
+          // First, get all receipts to delete their storage files
+          const { data: receipts } = await supabase
+            .from('receipts')
+            .select('file_url')
+            .eq('user_id', user.id);
+
+          // Delete receipt files from storage
+          if (receipts && receipts.length > 0) {
+            const filePaths = receipts
+              .map(receipt => receipt.file_url)
+              .filter(url => url) // Filter out null/undefined URLs
+              .map(url => {
+                // Extract file path from URL
+                const urlParts = url.split('/');
+                return urlParts[urlParts.length - 1];
+              });
+
+            if (filePaths.length > 0) {
+              const { error: storageError } = await supabase.storage
+                .from('receipts')
+                .remove(filePaths);
+
+              if (storageError) {
+                console.error('Error deleting receipt files:', storageError);
+                // Continue with deletion even if storage cleanup fails
+              }
+            }
+          }
+
           // Delete in order to respect foreign key constraints
           // 1. Delete expenses (references receipts)
           const { error: expensesError } = await supabase

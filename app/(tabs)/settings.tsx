@@ -158,6 +158,10 @@ export default function SettingsScreen() {
     router.push('/faqs');
   };
 
+  const navigateToPersonalSettings = () => {
+    router.push('/personal-settings');
+  };
+
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
   const renderCurrencyItem = ({ item }: { item: Currency }) => (
@@ -196,6 +200,22 @@ export default function SettingsScreen() {
         <Text style={[styles.userEmail, { color: theme.secondaryText }]}>
           {user?.email}
         </Text>
+      </View>
+
+      {/* Account */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: theme.text }]}>Account</Text>
+        
+        <TouchableOpacity 
+          style={[styles.settingItem, { backgroundColor: theme.cardBackground }]}
+          onPress={navigateToPersonalSettings}
+        >
+          <View style={styles.settingLeft}>
+            <Ionicons name="person-outline" size={20} color={theme.text} />
+            <Text style={[styles.settingText, { color: theme.text }]}>Personal Settings</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={theme.secondaryText} />
+        </TouchableOpacity>
       </View>
 
       {/* Preferences */}

@@ -17,6 +17,7 @@ import {
     View
 } from 'react-native';
 import uuid from 'react-native-uuid';
+import { clearExpensesCache } from './expense';
 
 export default function ScanScreen() {
   const [facing, setFacing] = useState<CameraType>('back');
@@ -137,6 +138,9 @@ export default function ScanScreen() {
       });
       
       if (result.success) {
+        // Clear expenses cache so the new receipt appears immediately
+        clearExpensesCache();
+        
         Alert.alert(
           'Success!', 
           'Receipt uploaded successfully!',

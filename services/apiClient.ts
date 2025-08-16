@@ -28,6 +28,13 @@ class ExpenseIQApiClient {
       // Get auth token
       const { data: { session } } = await supabase.auth.getSession();
       
+      console.log(`🌐 Making API request to: ${this.baseUrl}${endpoint}`);
+      console.log(`📝 Request options:`, {
+        method: options.method || 'GET',
+        headers: options.headers,
+        body: options.body
+      });
+      
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         ...options,
         headers: {
@@ -38,9 +45,12 @@ class ExpenseIQApiClient {
       });
 
       const result = await response.json();
+      
+      console.log(`📊 API Response (${response.status}):`, result);
+      
       return result;
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('💥 API Error:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Network error'
@@ -252,6 +262,7 @@ class ExpenseIQApiClient {
     full_name?: string;
     preferred_name?: string;
     email?: string;
+    phone_number?: string;
   }) {
     return this.makeRequest('/users', {
       method: 'PUT',
@@ -259,10 +270,24 @@ class ExpenseIQApiClient {
     });
   }
 
+  // Alias for updateUser to match component expectations
+  async updateUserProfile(data: {
+    full_name?: string;
+    preferred_name?: string;
+    phone_number?: string;
+  }) {
+    return this.updateUser(data);
+  }
+
   async deleteUser() {
     return this.makeRequest('/users', {
       method: 'DELETE',
     });
+  }
+
+  // Alias for deleteUser to match component expectations
+  async deleteUserAccount() {
+    return this.deleteUser();
   }
 
   // ==================== EXPENSE PROCESSING API ====================

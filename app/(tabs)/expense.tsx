@@ -14,6 +14,16 @@ import { defaultConfig } from "@tamagui/config/v4";
 
 const config = createTamagui(defaultConfig);
 
+// Cache for expenses data
+let expensesCache: {
+  data: ExpenseWithItems[];
+  timestamp: number;
+  currentPage: number;
+  hasMorePages: boolean;
+} | null = null;
+
+const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes for expenses (more frequent updates expected)
+
 export default function ExpenseScreen() {
   const colorScheme = useAppColorScheme();
   const [expenses, setExpenses] = useState<ExpenseWithItems[]>([]);
@@ -25,20 +35,45 @@ export default function ExpenseScreen() {
   const [kebabPosition, setKebabPosition] = useState<{ x: number; y: number } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMorePages, setHasMorePages] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   // Theme setup
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
 
   useEffect(() => {
-    fetchExpenses();
-  }, []);
+    // Check if we have cached data that's still valid
+    if (expensesCache && (Date.now() - expensesCache.timestamp) < CACHE_DURATION) {
+      console.log('📦 Using cached expenses data');
+      setExpenses(expensesCache.data);
+      setCurrentPage(expensesCache.currentPage);
+      setHasMorePages(expensesCache.hasMorePages);
+      setHasLoadedOnce(true);
+      setLoading(false);
+    } else if (!hasLoadedOnce) {
+      // Only load from API if we haven't loaded before or cache is expired
+      fetchExpenses();
+    }
+  }, [hasLoadedOnce]);
 
   const fetchExpenses = async (isRefresh = false, pageNumber = 1) => {
     try {
+      // If not refreshing and we have valid cache for page 1, use it
+      if (!isRefresh && pageNumber === 1 && expensesCache && (Date.now() - expensesCache.timestamp) < CACHE_DURATION) {
+        console.log('📦 Using cached expenses data');
+        setExpenses(expensesCache.data);
+        setCurrentPage(expensesCache.currentPage);
+        setHasMorePages(expensesCache.hasMorePages);
+        setLoading(false);
+        setHasLoadedOnce(true);
+        return;
+      }
+
       if (isRefresh) {
         setRefreshing(true);
         setCurrentPage(1);
         setHasMorePages(true);
+        // Clear cache on refresh
+        expensesCache = null;
       } else if (pageNumber > 1) {
         setLoadingMore(true);
       } else {
@@ -53,24 +88,50 @@ export default function ExpenseScreen() {
       if (expensesWithItems.length === 0) {
         if (pageNumber === 1) {
           setExpenses([]);
+          // Cache empty result
+          expensesCache = {
+            data: [],
+            timestamp: Date.now(),
+            currentPage: 1,
+            hasMorePages: false
+          };
         }
         setHasMorePages(false);
+        setHasLoadedOnce(true);
         return;
       }
 
       // Check if we have fewer items than requested (last page)
-      if (expensesWithItems.length < ExpenseService.getItemsPerPage()) {
-        setHasMorePages(false);
-      }
+      const hasMore = expensesWithItems.length >= ExpenseService.getItemsPerPage();
+      setHasMorePages(hasMore);
+
+      let finalExpenses: ExpenseWithItems[];
+      let finalPage: number;
 
       if (isRefresh || pageNumber === 1) {
+        finalExpenses = expensesWithItems;
+        finalPage = 1;
         setExpenses(expensesWithItems);
         setCurrentPage(1);
       } else {
         // Append new expenses for pagination
-        setExpenses((prev) => [...prev, ...expensesWithItems]);
+        finalExpenses = [...expenses, ...expensesWithItems];
+        finalPage = pageNumber;
+        setExpenses(finalExpenses);
         setCurrentPage(pageNumber);
       }
+
+      // Cache the data (only cache first page to keep it simple)
+      if (pageNumber === 1) {
+        expensesCache = {
+          data: finalExpenses,
+          timestamp: Date.now(),
+          currentPage: finalPage,
+          hasMorePages: hasMore
+        };
+      }
+      
+      setHasLoadedOnce(true);
     } catch (err) {
       console.error("💥 Error fetching expenses:", err);
       setError("Failed to load expenses");
@@ -114,6 +175,8 @@ export default function ExpenseScreen() {
               console.log('🔄 Reanalyze response:', response.status, responseData);
 
               if (response.ok) {
+                // Clear cache since data has changed
+                expensesCache = null;
                 Alert.alert("Success", "Receipt is being reanalyzed. Please check back in a few moments.");
                 // Refresh the list to get updated status
                 fetchExpenses(true, 1);
@@ -166,6 +229,8 @@ export default function ExpenseScreen() {
               console.log('🗑️ Delete receipt response:', response.status, responseData);
 
               if (response.ok) {
+                // Clear cache since data has changed
+                expensesCache = null;
                 // Remove from local state
                 setExpenses((prev) => prev.filter((e) => e.id !== receipt.id));
                 Alert.alert("Success", "Receipt and all related data deleted successfully");
@@ -202,6 +267,8 @@ export default function ExpenseScreen() {
               console.log('🗑️ Delete result:', success);
               
               if (success) {
+                // Clear cache since data has changed
+                expensesCache = null;
                 // Remove from local state
                 setExpenses((prev) => prev.filter((e) => e.id !== expense.id));
                 Alert.alert("Success", "Expense and all related data deleted successfully");
@@ -220,6 +287,8 @@ export default function ExpenseScreen() {
   };
 
   const handleEdit = (expense: ExpenseWithItems) => {
+    // Clear cache when editing (for future implementation)
+    expensesCache = null;
     Alert.alert(
       "Edit",
       `Edit functionality for ${
@@ -443,4 +512,10 @@ const darkTheme = {
   cardBackground: '#1c1c1e',
   text: '#ffffff',
   secondaryText: '#999999',
+};
+
+// Utility function to clear expenses cache from other parts of the app
+export const clearExpensesCache = () => {
+  expensesCache = null;
+  console.log('🗑️ Expenses cache cleared');
 };
