@@ -4,8 +4,6 @@ import { User } from '@supabase/supabase-js';
 import { router } from 'expo-router';
 import React, { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
-
-
 interface AuthContextType {
   user: User | null;
   loading: boolean;

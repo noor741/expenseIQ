@@ -1,3 +1,4 @@
+
 import { Ionicons } from "@expo/vector-icons";
 import { TamaguiProvider, View, createTamagui } from "@tamagui/core";
 import React, { useEffect, useState } from "react";
@@ -13,6 +14,7 @@ import { ExpenseWithItems } from "@/types/expense";
 import { defaultConfig } from "@tamagui/config/v4";
 
 const config = createTamagui(defaultConfig);
+
 
 export default function ExpenseScreen() {
   const colorScheme = useAppColorScheme();
@@ -304,6 +306,7 @@ export default function ExpenseScreen() {
   }
 
   return (
+
     <TamaguiProvider config={config}>
       <View height="100%" backgroundColor={theme.background}>
         <View style={[styles.header, { backgroundColor: theme.background }]}>
@@ -366,12 +369,14 @@ export default function ExpenseScreen() {
             if (receipt && receipt.isReceipt) handleReanalyze(receipt);
           }}
         />
+
       </View>
-    </TamaguiProvider>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+
   centerContainer: {
     flex: 1,
     justifyContent: "center",
@@ -444,3 +449,4 @@ const darkTheme = {
   text: '#ffffff',
   secondaryText: '#999999',
 };
+
