@@ -17,7 +17,7 @@ import {
     View
 } from 'react-native';
 import uuid from 'react-native-uuid';
-import { clearExpensesCache } from './expense';
+import { addNewReceiptToCache } from './expense';
 
 export default function ScanScreen() {
   const [facing, setFacing] = useState<CameraType>('back');
@@ -138,8 +138,34 @@ export default function ScanScreen() {
       });
       
       if (result.success) {
-        // Clear expenses cache so the new receipt appears immediately
-        clearExpensesCache();
+        // Add the new receipt to cache so it appears immediately
+        if (result.data) {
+          const receiptData = result.data as any;
+          const newReceipt = {
+            id: receiptData.id || receiptId,
+            merchant_name: 'Processing...',
+            total: 0,
+            subtotal: 0,
+            tax: 0,
+            currency: userCurrency,
+            transaction_date: new Date().toISOString(),
+            file_url: filename,
+            created_at: new Date().toISOString(),
+            uploadDate: new Date().toISOString(),
+            isReceipt: true,
+            receiptStatus: 'uploaded' as const,
+            expense_items: [],
+            totalItems: 0,
+            receipt_id: receiptData.id || receiptId,
+            payment_method: null,
+            description: null,
+            notes: null,
+            tags: null,
+            updated_at: new Date().toISOString()
+          };
+          
+          addNewReceiptToCache(newReceipt as any);
+        }
         
         Alert.alert(
           'Success!', 

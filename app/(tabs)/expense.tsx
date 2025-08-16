@@ -8,6 +8,7 @@ import { KebabMenu } from "@/components/expense/KebabMenu";
 import { LoadMoreButton } from "@/components/expense/LoadMoreButton";
 import { useAppColorScheme } from '@/hooks/useAppColorScheme';
 import { supabase } from "@/lib/supabase";
+import { apiClient } from "@/services/apiClient";
 import { ExpenseService } from "@/services/expenseService";
 import { ExpenseWithItems } from "@/types/expense";
 import { defaultConfig } from "@tamagui/config/v4";
@@ -54,6 +55,104 @@ export default function ExpenseScreen() {
       fetchExpenses();
     }
   }, [hasLoadedOnce]);
+
+  // Periodic check for processing receipts
+  useEffect(() => {
+    const checkProcessingReceipts = () => {
+      const processingReceipts = expenses.filter(item => 
+        item.isReceipt && 
+        item.receiptStatus && 
+        ['uploaded', 'processing'].includes(item.receiptStatus)
+      );
+
+      if (processingReceipts.length > 0) {
+        console.log(`🔄 Checking ${processingReceipts.length} processing receipts...`);
+        
+        // Update each processing receipt
+        processingReceipts.forEach(receipt => {
+          updateSingleItem(receipt.id, true);
+        });
+      }
+    };
+
+    // Check every 30 seconds for processing receipts
+    const interval = setInterval(checkProcessingReceipts, 30000);
+    
+    return () => clearInterval(interval);
+  }, [expenses]);
+
+  // Function to fetch and update a single receipt/expense
+  const updateSingleItem = async (itemId: string, isReceipt: boolean = true) => {
+    try {
+      console.log(`🔍 Fetching updated ${isReceipt ? 'receipt' : 'expense'}: ${itemId}`);
+      
+      let updatedItem: ExpenseWithItems | null = null;
+      
+      if (isReceipt) {
+        // Fetch updated receipt data from API
+        const response = await apiClient.getReceipt(itemId);
+        if (response.success && response.data) {
+          // Transform receipt data to ExpenseWithItems format
+          const receipt = response.data as any;
+          updatedItem = {
+            id: receipt.id,
+            merchant_name: receipt.merchant_name || 'Unknown Merchant',
+            total: receipt.total || 0,
+            subtotal: receipt.subtotal || receipt.total || 0,
+            tax: receipt.tax || 0,
+            currency: receipt.currency || 'CAD',
+            transaction_date: receipt.transaction_date,
+            file_url: receipt.file_url,
+            created_at: receipt.created_at,
+            uploadDate: receipt.upload_date,
+            isReceipt: true,
+            receiptStatus: receipt.status,
+            expense_items: [], // Receipts don't have expense items
+            totalItems: 0,
+            // Add other required fields from Expense type
+            receipt_id: receipt.id,
+            payment_method: null,
+            description: null,
+            notes: null,
+            tags: null,
+            updated_at: receipt.updated_at || new Date().toISOString()
+          } as unknown as ExpenseWithItems;
+        }
+      } else {
+        // Fetch updated expense data from API
+        const response = await apiClient.getExpense(itemId);
+        if (response.success && response.data) {
+          updatedItem = response.data as ExpenseWithItems;
+        }
+      }
+
+      if (updatedItem) {
+        // Update the item in local state
+        setExpenses(prev => {
+          const index = prev.findIndex(item => item.id === itemId);
+          if (index !== -1) {
+            const newExpenses = [...prev];
+            newExpenses[index] = updatedItem;
+            
+            // Also update cache
+            updateReceiptInCache(itemId, updatedItem);
+            
+            console.log(`✅ Updated ${isReceipt ? 'receipt' : 'expense'} in list: ${itemId}`);
+            return newExpenses;
+          }
+          return prev;
+        });
+        
+        return updatedItem;
+      }
+      
+      console.log(`❌ Failed to fetch updated ${isReceipt ? 'receipt' : 'expense'}: ${itemId}`);
+      return null;
+    } catch (error) {
+      console.error(`💥 Error updating single ${isReceipt ? 'receipt' : 'expense'}:`, error);
+      return null;
+    }
+  };
 
   const fetchExpenses = async (isRefresh = false, pageNumber = 1) => {
     try {
@@ -175,11 +274,13 @@ export default function ExpenseScreen() {
               console.log('🔄 Reanalyze response:', response.status, responseData);
 
               if (response.ok) {
-                // Clear cache since data has changed
-                expensesCache = null;
-                Alert.alert("Success", "Receipt is being reanalyzed. Please check back in a few moments.");
-                // Refresh the list to get updated status
-                fetchExpenses(true, 1);
+                // Instead of full refresh, just update the single receipt
+                Alert.alert("Success", "Receipt is being reanalyzed. Refreshing status...");
+                
+                // Wait a moment for processing to start, then update the single item
+                setTimeout(async () => {
+                  await updateSingleItem(receipt.id, true);
+                }, 1000);
               } else {
                 const errorMsg = responseData?.message || 'Failed to reanalyze receipt. Please try again.';
                 Alert.alert("Error", errorMsg);
@@ -229,10 +330,10 @@ export default function ExpenseScreen() {
               console.log('🗑️ Delete receipt response:', response.status, responseData);
 
               if (response.ok) {
-                // Clear cache since data has changed
-                expensesCache = null;
-                // Remove from local state
+                // Remove from local state immediately
                 setExpenses((prev) => prev.filter((e) => e.id !== receipt.id));
+                // Also remove from cache
+                removeReceiptFromCache(receipt.id);
                 Alert.alert("Success", "Receipt and all related data deleted successfully");
               } else {
                 const errorMsg = responseData?.message || 'Failed to delete receipt. Please try again.';
@@ -267,10 +368,10 @@ export default function ExpenseScreen() {
               console.log('🗑️ Delete result:', success);
               
               if (success) {
-                // Clear cache since data has changed
-                expensesCache = null;
-                // Remove from local state
+                // Remove from local state immediately
                 setExpenses((prev) => prev.filter((e) => e.id !== expense.id));
+                // Also remove from cache
+                removeReceiptFromCache(expense.id);
                 Alert.alert("Success", "Expense and all related data deleted successfully");
               } else {
                 Alert.alert("Error", "Failed to delete expense. Please try again.");
@@ -518,4 +619,44 @@ const darkTheme = {
 export const clearExpensesCache = () => {
   expensesCache = null;
   console.log('🗑️ Expenses cache cleared');
+};
+
+// Utility function to add new receipt to the current list (for real-time updates)
+export const addNewReceiptToCache = (newReceipt: ExpenseWithItems) => {
+  if (expensesCache) {
+    // Add to the beginning of the cached data
+    expensesCache.data = [newReceipt, ...expensesCache.data];
+    console.log('📝 Added new receipt to cache:', newReceipt.id);
+  }
+};
+
+// Utility function to add new receipt and update UI immediately
+export const addNewReceiptToUI = (newReceipt: ExpenseWithItems, setExpensesState?: React.Dispatch<React.SetStateAction<ExpenseWithItems[]>>) => {
+  // Add to cache
+  addNewReceiptToCache(newReceipt);
+  
+  // Update UI if setter is provided (for when component is active)
+  if (setExpensesState) {
+    setExpensesState(prev => [newReceipt, ...prev]);
+    console.log('🖥️ Added new receipt to UI:', newReceipt.id);
+  }
+};
+
+// Utility function to update a specific receipt in cache (for reanalysis)
+export const updateReceiptInCache = (receiptId: string, updatedReceipt: ExpenseWithItems) => {
+  if (expensesCache) {
+    const index = expensesCache.data.findIndex(item => item.id === receiptId);
+    if (index !== -1) {
+      expensesCache.data[index] = updatedReceipt;
+      console.log('🔄 Updated receipt in cache:', receiptId);
+    }
+  }
+};
+
+// Utility function to remove a receipt from cache (for deletions)
+export const removeReceiptFromCache = (receiptId: string) => {
+  if (expensesCache) {
+    expensesCache.data = expensesCache.data.filter(item => item.id !== receiptId);
+    console.log('🗑️ Removed receipt from cache:', receiptId);
+  }
 };
