@@ -20,6 +20,10 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  // New fields for signup
+  const [fullName, setFullName] = useState('');
+  const [preferredName, setPreferredName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [emailError, setEmailError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [confirmError, setConfirmError] = useState<string | null>(null);
@@ -155,8 +159,21 @@ export default function LoginScreen() {
       if (error) {
         Alert.alert('Registration Error', error.message);
       } else {
+        // Insert extra fields into public.users
+        if (data.user) {
+          const { error: userError } = await supabase.from('users').insert({
+            id: data.user.id,
+            email: email.trim(),
+            full_name: fullName,
+            preferred_name: preferredName,
+            phone_number: phoneNumber,
+          });
+          if (userError) {
+            console.error('Error inserting user profile:', userError);
+          }
+        }
         Alert.alert(
-          'Success', 
+          'Success',
           'Account created successfully! Please check your email for verification.',
           [
             {
@@ -166,6 +183,9 @@ export default function LoginScreen() {
                 setActiveTab('login');
                 setPassword('');
                 setConfirmPassword('');
+                setFullName('');
+                setPreferredName('');
+                setPhoneNumber('');
               }
             }
           ]
@@ -441,6 +461,58 @@ export default function LoginScreen() {
                     {confirmError && (
                       <Text color="#ef4444" fontSize={isTablet ? 14 : 13} marginTop={-10} marginBottom={4}>{confirmError}</Text>
                     )}
+                    {/* New fields for signup */}
+                    <Input
+                      placeholder="Full Name"
+                      value={fullName}
+                      onChangeText={setFullName}
+                      autoCapitalize="words"
+                      height={isTablet ? 56 : 52}
+                      fontSize={isTablet ? 16 : 15}
+                      borderWidth={1}
+                      borderColor="#e5e7eb"
+                      backgroundColor="#f9fafb"
+                      borderRadius={12}
+                      paddingHorizontal={16}
+                      editable={!loading}
+                      focusStyle={{ borderColor: '#4285f4', backgroundColor: '#ffffff', elevation: 2 }}
+                      placeholderTextColor="#9ca3af"
+                      marginTop={8}
+                    />
+                    <Input
+                      placeholder="Preferred Name (optional)"
+                      value={preferredName}
+                      onChangeText={setPreferredName}
+                      autoCapitalize="words"
+                      height={isTablet ? 56 : 52}
+                      fontSize={isTablet ? 16 : 15}
+                      borderWidth={1}
+                      borderColor="#e5e7eb"
+                      backgroundColor="#f9fafb"
+                      borderRadius={12}
+                      paddingHorizontal={16}
+                      editable={!loading}
+                      focusStyle={{ borderColor: '#4285f4', backgroundColor: '#ffffff', elevation: 2 }}
+                      placeholderTextColor="#9ca3af"
+                      marginTop={8}
+                    />
+                    <Input
+                      placeholder="Phone Number (optional)"
+                      value={phoneNumber}
+                      onChangeText={setPhoneNumber}
+                      keyboardType="phone-pad"
+                      height={isTablet ? 56 : 52}
+                      fontSize={isTablet ? 16 : 15}
+                      borderWidth={1}
+                      borderColor="#e5e7eb"
+                      backgroundColor="#f9fafb"
+                      borderRadius={12}
+                      paddingHorizontal={16}
+                      editable={!loading}
+                      focusStyle={{ borderColor: '#4285f4', backgroundColor: '#ffffff', elevation: 2 }}
+                      placeholderTextColor="#9ca3af"
+                      marginTop={8}
+                    />
                   </>
                 )}
 

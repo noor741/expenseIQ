@@ -89,7 +89,7 @@ export default function ExpenseScreen() {
       let updatedItem: ExpenseWithItems | null = null;
       
       if (isReceipt) {
-        // Fetch updated receipt data from API
+        // Fetch updated receipt data from API (now with longer timeout)
         const response = await apiClient.getReceipt(itemId);
         if (response.success && response.data) {
           // Transform receipt data to ExpenseWithItems format
@@ -408,6 +408,114 @@ export default function ExpenseScreen() {
     }
   };
 
+  const handleAcceptCategorySuggestion = async (expenseId: string, suggestedCategoryId: string) => {
+    try {
+      console.log(`✅ Accepting category suggestion for expense ${expenseId}: ${suggestedCategoryId}`);
+      
+      // Update the expense with the suggested category
+      const response = await apiClient.updateExpense(expenseId, {
+        category_id: suggestedCategoryId,
+        suggested_category_id: null, // Clear suggestion after accepting
+        suggested_category_confidence: null,
+        suggested_category_method: null
+      });
+
+      if (response.success) {
+        // Update local state - remove suggestion and update category
+        setExpenses(prevExpenses => 
+          prevExpenses.map(expense => 
+            expense.id === expenseId 
+              ? { 
+                  ...expense, 
+                  showCategorySuggestion: false,
+                  suggested_category_id: undefined,
+                  suggested_category_confidence: undefined,
+                  suggested_category_method: undefined,
+                  // You might want to also update the category name here if you have it
+                }
+              : expense
+          )
+        );
+        
+        // Update cache
+        if (expensesCache) {
+          expensesCache.data = expensesCache.data.map(expense =>
+            expense.id === expenseId
+              ? {
+                  ...expense,
+                  showCategorySuggestion: false,
+                  suggested_category_id: undefined,
+                  suggested_category_confidence: undefined,
+                  suggested_category_method: undefined,
+                }
+              : expense
+          );
+        }
+        
+        console.log(`✅ Category suggestion accepted for expense ${expenseId}`);
+      } else {
+        console.error(`❌ Failed to accept category suggestion:`, response.error);
+        Alert.alert('Error', 'Failed to update expense category. Please try again.');
+      }
+    } catch (error) {
+      console.error(`❌ Error accepting category suggestion:`, error);
+      Alert.alert('Error', 'Failed to update expense category. Please try again.');
+    }
+  };
+
+  const handleDismissCategorySuggestion = async (expenseId: string) => {
+    try {
+      console.log(`❌ Dismissing category suggestion for expense ${expenseId}`);
+      
+      // Just clear the suggestion fields without changing the category
+      const response = await apiClient.updateExpense(expenseId, {
+        suggested_category_id: null,
+        suggested_category_confidence: null,
+        suggested_category_method: null
+      });
+
+      if (response.success) {
+        // Update local state - hide suggestion
+        setExpenses(prevExpenses => 
+          prevExpenses.map(expense => 
+            expense.id === expenseId 
+              ? { 
+                  ...expense, 
+                  showCategorySuggestion: false,
+                  suggested_category_id: undefined,
+                  suggested_category_confidence: undefined,
+                  suggested_category_method: undefined,
+                }
+              : expense
+          )
+        );
+        
+        // Update cache
+        if (expensesCache) {
+          expensesCache.data = expensesCache.data.map(expense =>
+            expense.id === expenseId
+              ? {
+                  ...expense,
+                  showCategorySuggestion: false,
+                  suggested_category_id: undefined,
+                  suggested_category_confidence: undefined,
+                  suggested_category_method: undefined,
+                }
+              : expense
+          );
+        }
+        
+        console.log(`❌ Category suggestion dismissed for expense ${expenseId}`);
+      } else {
+        console.error(`❌ Failed to dismiss category suggestion:`, response.error);
+        Alert.alert('Error', 'Failed to dismiss suggestion. Please try again.');
+      }
+    } catch (error) {
+      console.error(`❌ Error dismissing category suggestion:`, error);
+      Alert.alert('Error', 'Failed to dismiss suggestion. Please try again.');
+    }
+  };
+
   const renderExpenseItem = ({ item }: { item: ExpenseWithItems }) => (
     <ExpenseCard
       item={item}
@@ -416,6 +524,8 @@ export default function ExpenseScreen() {
         setKebabVisible(item.id);
       }}
       isKebabVisible={kebabVisible === item.id}
+      onAcceptCategorySuggestion={handleAcceptCategorySuggestion}
+      onDismissCategorySuggestion={handleDismissCategorySuggestion}
     />
   );
 

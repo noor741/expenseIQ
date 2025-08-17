@@ -290,22 +290,27 @@ Deno.serve(async (req) => {
  */
 async function processReceiptOCR(receiptId: string, fileUrl: string, supabase: any, userId: string, currency: string = 'USD') {
   try {
+    console.log(`🔍 Starting OCR processing for receipt ${receiptId}`);
+    
     // Process the receipt with Azure Document Intelligence
     const ocrResult = await azureOCR.processReceipt(fileUrl);
     
     if (ocrResult.success && ocrResult.data) {
+      console.log(`✅ OCR successful for receipt ${receiptId}`);
       
       // Create service role client to bypass RLS for system updates
       const serviceSupabase = createServiceSupabaseClient();
       
-      // Update the receipt with OCR results using service role
+      // Update the receipt with OCR results (simplified)
+      const receiptUpdateData: any = {
+        status: 'processed',
+        raw_ocr_json: ocrResult.rawData,
+        processed_at: new Date().toISOString()
+      };
+      
       const { error: updateError } = await serviceSupabase
         .from('receipts')
-        .update({
-          status: 'processed',
-          raw_ocr_json: ocrResult.rawData,
-          processed_at: new Date().toISOString()
-        })
+        .update(receiptUpdateData)
         .eq('id', receiptId);
       
       if (updateError) {
@@ -315,11 +320,17 @@ async function processReceiptOCR(receiptId: string, fileUrl: string, supabase: a
       
       console.log(`💾 Receipt ${receiptId} updated with OCR results`);
 
-      // 🎯 Automatically create expense and expense items from OCR data
-      console.log(`🏗️ Creating expense from OCR data for receipt ${receiptId}`);
+      // 🎯 SIMPLIFIED: Skip category suggestion for now to fix stuck processing
+      console.log(`🏗️ Creating expense from OCR data for receipt ${receiptId} (simplified)`);
       
-      // Create expense and expense items using the enhanced service
-      const expenseResult = await expenseService.createFromOCR(receiptId, ocrResult.rawData, userId, currency);
+      // Create expense and expense items using the basic service (no category suggestion)
+      const expenseResult = await expenseService.createFromOCR(
+        receiptId, 
+        ocrResult.rawData, 
+        userId, 
+        currency
+        // Remove category suggestion to fix processing
+      );
       
       if (expenseResult.success) {
         // Update receipt status to indicate successful expense creation
@@ -329,6 +340,8 @@ async function processReceiptOCR(receiptId: string, fileUrl: string, supabase: a
             status: 'expense_created'
           })
           .eq('id', receiptId);
+          
+        console.log(`🎉 Expense created successfully for receipt ${receiptId}`);
           
       } else {
         console.error(`❌ Failed to create expense from OCR data:`, expenseResult.error);

@@ -34,15 +34,23 @@ class ExpenseIQApiClient {
         headers: options.headers,
         body: options.body
       });
+
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased to 30 seconds for better reliability
       
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         ...options,
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`,
+          'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '',
           ...options.headers,
         },
       });
+
+      clearTimeout(timeoutId);
 
       const result = await response.json();
       
@@ -187,6 +195,10 @@ class ExpenseIQApiClient {
     tax?: number;
     total?: number;
     payment_method?: string;
+    category_id?: string | null;
+    suggested_category_id?: string | null;
+    suggested_category_confidence?: number | null;
+    suggested_category_method?: string | null;
   }) {
     return this.makeRequest(`/expenses/${id}`, {
       method: 'PUT',

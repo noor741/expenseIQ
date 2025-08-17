@@ -3,16 +3,32 @@ import { apiClient } from '@/services/apiClient';
 import { Expense, ExpenseItem } from '@/types/database';
 import { ExpenseWithItems } from '@/types/expense';
 import { determineCategoryFromMerchant } from '@/utils/categoryHelper';
+import { getCategoryColor } from '@/utils/categoryColors';
 
 const ITEMS_PER_PAGE = 20;
 
 export class ExpenseService {
   static async fetchExpensesAndReceipts(pageNumber = 1): Promise<ExpenseWithItems[]> {
     try {
-      // Fetch processed expenses
+      console.log(`🔍 Fetching expenses and receipts for page ${pageNumber}...`);
+      
+      // For now, let's skip the API client and go directly to database
+      // This avoids network timeout issues while we debug the functions
+      console.log('📊 Using direct database access for better reliability');
+
+      // Check authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('User not authenticated');
+      }
+
+      console.log('✅ User authenticated, fetching data...');
+
+      // Fetch processed expenses directly from database
       const processedExpenses = await ExpenseService.fetchExpenses(pageNumber);
       
-      // Fetch unprocessed receipts
+      // Fetch unprocessed receipts directly from database  
       const unprocessedReceipts = await ExpenseService.fetchUnprocessedReceipts(pageNumber);
       
       // Combine and sort by date
@@ -23,6 +39,7 @@ export class ExpenseService {
         return dateB.getTime() - dateA.getTime();
       });
       
+      console.log(`✅ Got ${processedExpenses.length} expenses and ${unprocessedReceipts.length} receipts`);
       return allItems;
     } catch (error) {
       console.error('Error fetching expenses and receipts:', error);
@@ -78,6 +95,7 @@ export class ExpenseService {
         expense_items: [], // No items for unprocessed receipts
         totalItems: 0,
         category: determineCategoryFromMerchant(receipt.merchant_name || ''),
+        categoryColor: getCategoryColor(determineCategoryFromMerchant(receipt.merchant_name || '')),
         // Add receipt-specific fields
         isReceipt: true,
         receiptStatus: receipt.status,
@@ -118,15 +136,28 @@ export class ExpenseService {
 
       // For each expense, fetch its items and categorize
       const expensesWithItems: ExpenseWithItems[] = await Promise.all(
-        expensesData.map(async (expense: Expense) => {
+        expensesData.map(async (expense: any) => {
           const items = await ExpenseService.fetchExpenseItems(expense.id);
-          const category = determineCategoryFromMerchant(expense.merchant_name || '');
+          
+          // Use category from database if available, otherwise fallback to merchant-based categorization
+          let category = expense.categories?.name;
+          let categoryColor = expense.categories?.color;
+          
+          if (!category) {
+            category = determineCategoryFromMerchant(expense.merchant_name || '');
+          }
+          
+          // Use database color if available, otherwise get color from our default palette
+          if (!categoryColor) {
+            categoryColor = getCategoryColor(category);
+          }
           
           return {
             ...expense,
             expense_items: items,
             totalItems: items.length,
-            category
+            category,
+            categoryColor
           };
         })
       );
@@ -157,7 +188,8 @@ export class ExpenseService {
       .from('expenses')
       .select(`
         *,
-        receipts!inner (id, user_id)
+        receipts!inner (id, user_id),
+        categories (id, name, color)
       `)
       .eq('receipts.user_id', user.id)
       .order('transaction_date', { ascending: false })

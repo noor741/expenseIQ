@@ -28,6 +28,10 @@ export interface Expense {
   total: number;
   payment_method?: string;
   created_at: string;
+  // Azure category suggestion fields
+  suggested_category_id?: string;
+  suggested_category_confidence?: number;
+  suggested_category_method?: 'rule_based' | 'semantic' | 'hybrid';
 }
 
 export interface ExpenseItem {

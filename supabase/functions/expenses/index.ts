@@ -39,7 +39,26 @@ Deno.serve(async (req) => {
             return createErrorResponse(`Expense not found: ${error.message}`, 404);
           }
 
-          return createResponse({ success: true, data });
+          // Fetch categories separately
+          const { data: categoriesData, error: categoriesError } = await supabase
+            .from('categories')
+            .select('id, name');
+
+          const categoriesMap = new Map(categoriesData?.map(cat => [cat.id, cat.name]) || []);
+
+          // Process single expense data
+          const processedData = {
+            ...data,
+            category: data.category_id ? categoriesMap.get(data.category_id) || 'Uncategorized' : 'Uncategorized',
+            suggestedCategoryName: data.suggested_category_id ? categoriesMap.get(data.suggested_category_id) : undefined,
+            showCategorySuggestion: !!(
+              data.suggested_category_id && 
+              data.suggested_category_confidence &&
+              categoriesMap.get(data.suggested_category_id)
+            )
+          };
+
+          return createResponse({ success: true, data: processedData });
         } else {
           // Get all expenses with filtering
           const page = parseInt(url.searchParams.get('page') || '1');
@@ -80,10 +99,37 @@ Deno.serve(async (req) => {
             return createErrorResponse(`Failed to fetch expenses: ${error.message}`);
           }
 
+          // Fetch categories separately to avoid relationship issues
+          const { data: categoriesData, error: categoriesError } = await supabase
+            .from('categories')
+            .select('id, name');
+
+          if (categoriesError) {
+            console.error('Failed to fetch categories:', categoriesError);
+          }
+
+          const categoriesMap = new Map(categoriesData?.map(cat => [cat.id, cat.name]) || []);
+
+          // Process data to add category info
+          const processedExpenses = data?.map(expense => {
+            const expenseData = {
+              ...expense,
+              category: expense.category_id ? categoriesMap.get(expense.category_id) || 'Uncategorized' : 'Uncategorized',
+              suggestedCategoryName: expense.suggested_category_id ? categoriesMap.get(expense.suggested_category_id) : undefined,
+              showCategorySuggestion: !!(
+                expense.suggested_category_id && 
+                expense.suggested_category_confidence &&
+                categoriesMap.get(expense.suggested_category_id)
+              )
+            };
+            
+            return expenseData;
+          }) || [];
+
           return createResponse({
             success: true,
             data: {
-              expenses: data,
+              expenses: processedExpenses,
               pagination: {
                 page,
                 limit,
@@ -182,7 +228,9 @@ Deno.serve(async (req) => {
         const updateData = await req.json();
         const allowedFields = [
           'merchant_name', 'transaction_date', 'currency',
-          'subtotal', 'tax', 'total', 'payment_method'
+          'subtotal', 'tax', 'total', 'payment_method',
+          'category_id', 'suggested_category_id', 
+          'suggested_category_confidence', 'suggested_category_method'
         ];
         const filteredData = Object.keys(updateData)
           .filter(key => allowedFields.includes(key))

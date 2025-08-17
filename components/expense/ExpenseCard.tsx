@@ -5,11 +5,14 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { categoryIcons } from "../../constants/categoryIcons";
 import { ExpenseWithItems } from "../../types/expense";
 import { formatCurrency } from "../../utils/currency";
+import { CategorySuggestionCard } from "./CategorySuggestionCard";
 
 interface ExpenseCardProps {
   item: ExpenseWithItems;
   onKebabPress: (position: { x: number; y: number }) => void;
   isKebabVisible: boolean;
+  onAcceptCategorySuggestion?: (expenseId: string, suggestedCategoryId: string) => void;
+  onDismissCategorySuggestion?: (expenseId: string) => void;
 }
 
 // Helper functions for status handling
@@ -49,6 +52,8 @@ export function ExpenseCard({
   item,
   onKebabPress,
   isKebabVisible,
+  onAcceptCategorySuggestion,
+  onDismissCategorySuggestion,
 }: ExpenseCardProps) {
   const colorScheme = useAppColorScheme();
   const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
@@ -70,11 +75,26 @@ export function ExpenseCard({
   };
 
   return (
-    <TouchableOpacity
-      style={[styles.expenseCard, { backgroundColor: theme.cardBackground }]}
-      onPress={handleCardPress}
-      activeOpacity={0.7}
-    >
+    <>
+      {/* Category Suggestion Card (above expense card if suggested) */}
+      {item.showCategorySuggestion && item.suggestedCategoryName && item.suggested_category_id && item.suggested_category_confidence && (
+        <CategorySuggestionCard
+          suggestedCategoryName={item.suggestedCategoryName}
+          confidence={item.suggested_category_confidence}
+          method={item.suggested_category_method || 'hybrid'}
+          onAccept={() => onAcceptCategorySuggestion?.(item.id, item.suggested_category_id!)}
+          onDismiss={() => onDismissCategorySuggestion?.(item.id)}
+        />
+      )}
+
+      <TouchableOpacity
+        style={[styles.expenseCard, { backgroundColor: theme.cardBackground }]}
+        onPress={handleCardPress}
+        activeOpacity={0.7}
+      >
+      {/* Modern Left Border with Category Color */}
+      <View style={[styles.leftBorder, { backgroundColor: item.categoryColor || '#BDC3C7' }]} />
+      
       <View style={styles.expenseContent}>
         <View style={styles.leftSection}>
           <View style={styles.iconContainer}>
@@ -210,6 +230,7 @@ export function ExpenseCard({
         </View>
       )}
     </TouchableOpacity>
+    </>
   );
 }
 
@@ -218,6 +239,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 12,
     overflow: "hidden",
+    position: "relative", // For absolute positioning of left border
+  },
+  leftBorder: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    zIndex: 1,
   },
   expenseContent: {
     flexDirection: "row",

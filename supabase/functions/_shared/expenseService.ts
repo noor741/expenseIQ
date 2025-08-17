@@ -1,19 +1,27 @@
 import { createServiceSupabaseClient } from './supabase.ts';
+import { AzureOpenAIService } from './azureOpenAI.ts';
 
 /**
  * Enhanced expense creation service with automatic OCR data processing
  */
 export class ExpenseService {
   private supabase;
+  private aiService;
 
   constructor() {
     this.supabase = createServiceSupabaseClient();
+    this.aiService = new AzureOpenAIService();
   }
 
   /**
    * Create expense and items from OCR data automatically
    */
-  async createFromOCR(receiptId: string, ocrData: any, userId: string, currency: string = 'USD'): Promise<{
+  async createFromOCR(
+    receiptId: string, 
+    ocrData: any, 
+    userId: string, 
+    currency: string = 'USD'
+  ): Promise<{
     success: boolean;
     expenseId?: string;
     itemsCreated?: number;
@@ -32,20 +40,40 @@ export class ExpenseService {
         };
       }
 
-      // Create the expense record
+      // Use AI to categorize the receipt
+      console.log('🤖 Running AI categorization...');
+      const receiptData = {
+        description: extractedData.merchantName,
+        vendor: extractedData.merchantName,
+        items: extractedData.items || [],
+        total: extractedData.total || 0
+      };
+
+      const categorySuggestion = await this.aiService.categorizeReceipt(receiptData);
+      console.log(`🎯 AI suggested category: "${categorySuggestion.category}" (confidence: ${categorySuggestion.confidence})`);
+
+      // Ensure the category exists in the database
+      const categoryId = await this.aiService.ensureCategoryExists(categorySuggestion.category, userId);
+      console.log(`📁 Category ID: ${categoryId}`);
+
+      // Create the expense record with category
+      const expenseInsertData: any = {
+        receipt_id: receiptId,
+        category_id: categoryId,
+        merchant_name: extractedData.merchantName || 'Unknown Merchant',
+        transaction_date: extractedData.transactionDate || new Date().toISOString().split('T')[0],
+        currency: currency,
+        subtotal: extractedData.subtotal || 0,
+        tax: extractedData.tax || 0,
+        total: extractedData.total || 0,
+        payment_method: null,
+        notes: `AI categorized as "${categorySuggestion.category}" (${Math.round(categorySuggestion.confidence * 100)}% confidence): ${categorySuggestion.reasoning}`,
+        created_at: new Date().toISOString()
+      };
+
       const { data: expense, error: expenseError } = await this.supabase
         .from('expenses')
-        .insert({
-          receipt_id: receiptId,
-          merchant_name: extractedData.merchantName || 'Unknown Merchant',
-          transaction_date: extractedData.transactionDate || new Date().toISOString().split('T')[0],
-          currency: currency,
-          subtotal: extractedData.subtotal || 0,
-          tax: extractedData.tax || 0,
-          total: extractedData.total || 0,
-          payment_method: null,
-          created_at: new Date().toISOString()
-        })
+        .insert(expenseInsertData)
         .select()
         .single();
 
